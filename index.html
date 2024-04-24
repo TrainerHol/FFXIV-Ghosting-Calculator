@@ -27,15 +27,51 @@
       input {
         width: 90px;
       }
+      .collapsible {
+        cursor: pointer;
+        padding: 5px;
+        background-color: #333;
+        border: none;
+        text-align: left;
+        outline: none;
+        font-size: 14px;
+        color: white;
+      }
+      .active,
+      .collapsible:hover {
+        background-color: #555;
+      }
+      .content {
+        padding: 0 18px;
+        display: none;
+        overflow: hidden;
+        background-color: #222;
+        color: white;
+        font-size: 12px;
+      }
+      .copy-btn {
+        cursor: pointer;
+        margin-left: 5px;
+        color: #fff;
+      }
     </style>
   </head>
   <body>
     <div id="container"></div>
     <div id="info">
       <h3>Ghosting Calculator</h3>
-      Red Sphere: (<input type="number" id="redX" step="0.01" />, <input type="number" id="redY" step="0.01" />, <input type="number" id="redZ" step="0.01" />) <button id="validateBtn">Clamp/Validate</button><br />
-      Blue Sphere: (<span id="blueX"></span>, <span id="blueY"></span>, <span id="blueZ"></span>)<br />
-      Distance: <span id="distance"></span>
+      Red Sphere: (<input type="number" id="redX" step="0.01" /><span class="copy-btn" data-target="redX">C</span>, <input type="number" id="redY" step="0.01" /><span class="copy-btn" data-target="redY">C</span>, <input type="number" id="redZ" step="0.01" /><span class="copy-btn" data-target="redZ">C</span>) <button id="validateBtn">Clamp/Validate</button><br />
+      Blue Sphere: (<span id="blueX"></span><span class="copy-btn" data-target="blueX">C</span>, <span id="blueY"></span><span class="copy-btn" data-target="blueY">C</span>, <span id="blueZ"></span><span class="copy-btn" data-target="blueZ">C</span>)<br />
+      Distance: <span id="distance"></span><br />
+      Pathing:
+      <select id="pathing">
+        <option value="none">None</option>
+        <option value="lowest">Lowest</option>
+        <option value="shortest">Shortest</option>
+      </select>
+      # of items: <input type="number" id="itemCount" min="1" value="5" /><br />
+      <button class="collapsible">Coordinates</button>
+      <div class="content" id="coordinateList"></div>
     </div>
 
     <script>
@@ -48,7 +84,7 @@
 
       // Create the wireframe sphere
       const sphereGeometry = new THREE.SphereGeometry(50, 32, 32);
-      const sphereMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: true });
+      const sphereMaterial = new THREE.MeshBasicMaterial({ color: 0x002e07, wireframe: true });
       const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
       scene.add(sphere);
 
@@ -108,6 +144,7 @@
           blueSphere.position.copy(bluePosition);
           updateInputFields();
           updateDistance();
+          updatePathing();
         }
       }
 
@@ -153,6 +190,7 @@
         blueSphere.position.copy(bluePosition);
         updateInputFields();
         updateDistance();
+        updatePathing();
       }
 
       // Add North arrow
@@ -161,6 +199,114 @@
       const arrowHelper = new THREE.ArrowHelper(new THREE.Vector3(0, 0, -1), new THREE.Vector3(0, 0, 0), arrowLength, arrowColor);
       arrowHelper.position.set(0, 0, -50);
       scene.add(arrowHelper);
+
+      // Pathing variables
+      const pathingSpheres = [];
+
+      // Update pathing
+      function updatePathing() {
+        const pathingType = document.getElementById("pathing").value;
+        const itemCount = parseInt(document.getElementById("itemCount").value);
+
+        // Clear existing pathing spheres
+        pathingSpheres.forEach((sphere) => {
+          scene.remove(sphere);
+        });
+        pathingSpheres.length = 0;
+
+        if (pathingType === "lowest" && redSphere.position.y > 0) {
+          const lowestPoint = new THREE.Vector3(redSphere.position.x, -redSphere.position.y, redSphere.position.z);
+          createLowestPathing(itemCount, lowestPoint);
+        } else if (pathingType === "shortest") {
+          const lowestPoint = new THREE.Vector3(redSphere.position.x, -redSphere.position.y, redSphere.position.z);
+          createShortestPathing(itemCount, lowestPoint);
+        }
+
+        updateCoordinateList();
+      }
+
+      // Create lowest pathing
+      function createLowestPathing(itemCount, lowestPoint) {
+        const startPoint = new THREE.Vector3(0, -50, 0);
+        const startDirection = startPoint.clone().normalize();
+        const endDirection = lowestPoint.clone().normalize();
+
+        for (let i = 0; i < itemCount; i++) {
+          const t = i / (itemCount - 1);
+          const direction = new THREE.Vector3().lerpVectors(startDirection, endDirection, t);
+          const point = direction.clone().normalize().multiplyScalar(50);
+          const sphere = createPathingSphere(point);
+          pathingSpheres.push(sphere);
+        }
+      }
+
+      // Create shortest pathing
+      function createShortestPathing(itemCount, lowestPoint) {
+        const startPoint = new THREE.Vector3(0, 0, 0);
+        const endPoint = lowestPoint;
+
+        for (let i = 0; i < itemCount; i++) {
+          const t = i / (itemCount - 1);
+          const point = new THREE.Vector3().lerpVectors(startPoint, endPoint, t);
+          const sphere = createPathingSphere(point);
+          pathingSpheres.push(sphere);
+        }
+      }
+
+      // Create pathing sphere
+      function createPathingSphere(point) {
+        const geometry = new THREE.SphereGeometry(0.5);
+        const material = new THREE.MeshBasicMaterial({ color: 0x8b2bff });
+        const sphere = new THREE.Mesh(geometry, material);
+        sphere.position.copy(point);
+        scene.add(sphere);
+        return sphere;
+      }
+
+      // Update coordinate list
+      function updateCoordinateList() {
+        const coordinateList = document.getElementById("coordinateList");
+        coordinateList.innerHTML = "";
+
+        pathingSpheres.forEach((sphere, index) => {
+          const coords = sphere.position;
+          const item = document.createElement("div");
+          item.innerHTML = `${index + 1}: (<span id="pathX${index}">${coords.x.toFixed(6)}</span><span class="copy-btn" data-target="pathX${index}">C</span>, <span id="pathY${index}">${coords.y.toFixed(6)}</span><span class="copy-btn" data-target="pathY${index}">C</span>, <span id="pathZ${index}">${coords.z.toFixed(6)}</span><span class="copy-btn" data-target="pathZ${index}">C</span>)`;
+          coordinateList.appendChild(item);
+        });
+      }
+
+      // Collapsible list functionality
+      const collapsible = document.getElementsByClassName("collapsible")[0];
+      collapsible.addEventListener("click", function () {
+        this.classList.toggle("active");
+        const content = this.nextElementSibling;
+        if (content.style.display === "block") {
+          content.style.display = "none";
+        } else {
+          content.style.display = "block";
+        }
+      });
+
+      // Copy button functionality
+      document.addEventListener("click", function (event) {
+        if (event.target.classList.contains("copy-btn")) {
+          const targetId = event.target.getAttribute("data-target");
+          const targetElement = document.getElementById(targetId);
+          const value = targetElement ? targetElement.value || targetElement.textContent : "";
+
+          const tempInput = document.createElement("input");
+          tempInput.value = value;
+          document.body.appendChild(tempInput);
+          tempInput.select();
+          document.execCommand("copy");
+          document.body.removeChild(tempInput);
+        }
+      });
+
+      // Add event listeners for pathing type and item count changes
+      document.getElementById("pathing").addEventListener("change", updatePathing);
+      document.getElementById("itemCount").addEventListener("change", updatePathing);
 
       // Render loop
       function animate() {
