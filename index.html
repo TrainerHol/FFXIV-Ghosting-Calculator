@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Ghosting Calculator</title>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+      }
+      #container {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+      }
+      #info {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        color: white;
+        font-family: monospace;
+        font-size: 14px;
+      }
+      input {
+        width: 90px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="container"></div>
+    <div id="info">
+      <h3>Ghosting Calculator</h3>
+      Red Sphere: (<input type="number" id="redX" step="0.01" />, <input type="number" id="redY" step="0.01" />, <input type="number" id="redZ" step="0.01" />) <button id="validateBtn">Clamp/Validate</button><br />
+      Blue Sphere: (<span id="blueX"></span>, <span id="blueY"></span>, <span id="blueZ"></span>)<br />
+      Distance: <span id="distance"></span>
+    </div>
+
+    <script>
+      // Set up the scene, camera, and renderer
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+      const renderer = new THREE.WebGLRenderer();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      document.getElementById("container").appendChild(renderer.domElement);
+
+      // Create the wireframe sphere
+      const sphereGeometry = new THREE.SphereGeometry(50, 32, 32);
+      const sphereMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: true });
+      const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+      scene.add(sphere);
+
+      // Create the red sphere
+      const redSphereGeometry = new THREE.SphereGeometry(2);
+      const redSphereMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+      const redSphere = new THREE.Mesh(redSphereGeometry, redSphereMaterial);
+      redSphere.position.set(50, 0, 0);
+      scene.add(redSphere);
+
+      // Create the blue sphere
+      const blueSphereGeometry = new THREE.SphereGeometry(2);
+      const blueSphereMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff });
+      const blueSphere = new THREE.Mesh(blueSphereGeometry, blueSphereMaterial);
+      blueSphere.position.copy(redSphere.position).multiplyScalar(-1);
+      scene.add(blueSphere);
+
+      // Set up the camera position and controls
+      camera.position.set(0, 0, 100);
+      const controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+      // Set up the dragging functionality
+      let isDragging = false;
+      const mouse = new THREE.Vector2();
+      const raycaster = new THREE.Raycaster();
+
+      function onMouseDown(event) {
+        isDragging = true;
+        updateMousePosition(event);
+      }
+
+      function onMouseMove(event) {
+        if (isDragging) {
+          updateMousePosition(event);
+          updateSpherePosition();
+        }
+      }
+
+      function onMouseUp(event) {
+        isDragging = false;
+      }
+
+      function updateMousePosition(event) {
+        mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+      }
+
+      function updateSpherePosition() {
+        raycaster.setFromCamera(mouse, camera);
+        const intersection = raycaster.intersectObject(sphere);
+        if (intersection.length > 0) {
+          const point = intersection[0].point;
+          const direction = point.clone().normalize();
+          const redPosition = direction.clone().multiplyScalar(50);
+          const bluePosition = direction.clone().multiplyScalar(-50);
+          redSphere.position.copy(redPosition);
+          blueSphere.position.copy(bluePosition);
+          updateInputFields();
+          updateDistance();
+        }
+      }
+
+      renderer.domElement.addEventListener("mousedown", onMouseDown, false);
+      renderer.domElement.addEventListener("mousemove", onMouseMove, false);
+      renderer.domElement.addEventListener("mouseup", onMouseUp, false);
+
+      // Update the input fields with the sphere coordinates
+      function updateInputFields() {
+        const redCoords = redSphere.position;
+        document.getElementById("redX").value = redCoords.x.toFixed(6);
+        document.getElementById("redY").value = redCoords.y.toFixed(6);
+        document.getElementById("redZ").value = redCoords.z.toFixed(6);
+        updateBlueSphereCoords();
+      }
+
+      // Update the blue sphere coordinates based on the red sphere
+      function updateBlueSphereCoords() {
+        const blueCoords = blueSphere.position;
+        document.getElementById("blueX").textContent = blueCoords.x.toFixed(6);
+        document.getElementById("blueY").textContent = blueCoords.y.toFixed(6);
+        document.getElementById("blueZ").textContent = blueCoords.z.toFixed(6);
+      }
+
+      // Update the distance between the red and blue spheres
+      function updateDistance() {
+        const distance = redSphere.position.distanceTo(blueSphere.position);
+        document.getElementById("distance").textContent = distance.toFixed(6);
+      }
+
+      // Add event listener to the validate button
+      document.getElementById("validateBtn").addEventListener("click", validateCoordinates);
+
+      function validateCoordinates() {
+        const x = parseFloat(document.getElementById("redX").value);
+        const y = parseFloat(document.getElementById("redY").value);
+        const z = parseFloat(document.getElementById("redZ").value);
+        const newPosition = new THREE.Vector3(x, y, z);
+        const direction = newPosition.clone().normalize();
+        const redPosition = direction.clone().multiplyScalar(50);
+        const bluePosition = direction.clone().multiplyScalar(-50);
+        redSphere.position.copy(redPosition);
+        blueSphere.position.copy(bluePosition);
+        updateInputFields();
+        updateDistance();
+      }
+
+      // Add North arrow
+      const arrowLength = 60;
+      const arrowColor = 0xffff00;
+      const arrowHelper = new THREE.ArrowHelper(new THREE.Vector3(0, 0, -1), new THREE.Vector3(0, 0, 0), arrowLength, arrowColor);
+      arrowHelper.position.set(0, 0, -50);
+      scene.add(arrowHelper);
+
+      // Render loop
+      function animate() {
+        requestAnimationFrame(animate);
+        renderer.render(scene, camera);
+      }
+      animate();
+    </script>
+  </body>
+</html>
