@@ -153,13 +153,18 @@ function init() {
   // Create lowest pathing
   function createLowestPathing(itemCount, lowestPoint) {
     const startPoint = new THREE.Vector3(0, -50, 0);
-    const startDirection = startPoint.clone().normalize();
-    const endDirection = lowestPoint.clone().normalize();
+    const endPoint = new THREE.Vector3(lowestPoint.x, -50, lowestPoint.z);
+    const horizontalDistance = endPoint.distanceTo(startPoint);
+    const stepSize = horizontalDistance / (itemCount - 1);
 
     for (let i = 0; i < itemCount; i++) {
       const t = i / (itemCount - 1);
-      const direction = new THREE.Vector3().lerpVectors(startDirection, endDirection, t);
-      const point = direction.clone().normalize().multiplyScalar(50);
+      const x = startPoint.x + (endPoint.x - startPoint.x) * t;
+      const z = startPoint.z + (endPoint.z - startPoint.z) * t;
+      const horizontalMagnitude = Math.sqrt(x * x + z * z);
+      const y = -Math.sqrt(2500 - horizontalMagnitude * horizontalMagnitude);
+
+      const point = new THREE.Vector3(x, y, z);
       const sphere = createPathingSphere(point);
       pathingSpheres.push(sphere);
     }
