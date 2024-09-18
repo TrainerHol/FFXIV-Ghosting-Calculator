@@ -148,7 +148,37 @@ function init() {
     }
 
     updateCoordinateList();
+    updateSpacingDelta();
   }
+
+  // Add this new function to calculate and update the spacing delta
+  function updateSpacingDelta() {
+    const spacingDeltaElement = document.getElementById("spacingDelta");
+    if (pathingSpheres.length < 2) {
+      spacingDeltaElement.textContent = "";
+      return;
+    }
+
+    let totalHorizontalDistance = 0;
+    for (let i = 1; i < pathingSpheres.length; i++) {
+      const prev = pathingSpheres[i - 1].position;
+      const current = pathingSpheres[i].position;
+      const horizontalDistance = Math.sqrt(Math.pow(current.x - prev.x, 2) + Math.pow(current.z - prev.z, 2));
+      totalHorizontalDistance += horizontalDistance;
+    }
+    const averageHorizontalSpacing = totalHorizontalDistance / (pathingSpheres.length - 1);
+    spacingDeltaElement.textContent = `(Spacing Delta: ${averageHorizontalSpacing.toFixed(2)})`;
+  }
+
+  // Update the event listeners to include the new updateSpacingDelta function
+  document.getElementById("pathing").addEventListener("change", () => {
+    updatePathing();
+    updateSpacingDelta();
+  });
+  document.getElementById("itemCount").addEventListener("change", () => {
+    updatePathing();
+    updateSpacingDelta();
+  });
 
   // Create lowest pathing
   function createLowestPathing(itemCount, lowestPoint) {
@@ -245,6 +275,7 @@ function init() {
   updateInputFields();
   updateDistance();
   updatePathing();
+  updateSpacingDelta();
 
   // Add event listener for Makeplace export button
   document.getElementById("exportMakeplace").addEventListener("click", exportMakeplace);
