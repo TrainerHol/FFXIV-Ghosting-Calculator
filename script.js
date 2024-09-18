@@ -139,8 +139,8 @@ function init() {
     });
     pathingSpheres.length = 0;
 
-    if (pathingType === "lowest" && redSphere.position.y > 0) {
-      const lowestPoint = new THREE.Vector3(redSphere.position.x, -redSphere.position.y, redSphere.position.z);
+    if (pathingType === "lowest") {
+      const lowestPoint = new THREE.Vector3(redSphere.position.x, Math.abs(redSphere.position.y), redSphere.position.z);
       createLowestPathing(itemCount, lowestPoint);
     } else if (pathingType === "shortest") {
       const lowestPoint = new THREE.Vector3(redSphere.position.x, -redSphere.position.y, redSphere.position.z);
@@ -162,6 +162,7 @@ function init() {
       const x = startPoint.x + (endPoint.x - startPoint.x) * t;
       const z = startPoint.z + (endPoint.z - startPoint.z) * t;
       const horizontalMagnitude = Math.sqrt(x * x + z * z);
+      // Use Math.abs to ensure we always use the lower hemisphere of the sphere
       const y = -Math.sqrt(2500 - horizontalMagnitude * horizontalMagnitude);
 
       const point = new THREE.Vector3(x, y, z);
