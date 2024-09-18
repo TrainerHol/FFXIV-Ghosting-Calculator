@@ -24,6 +24,9 @@ function init() {
       pathingType: "none",
       itemCount: 5,
       pathingSpheres: [], // Added pathingSpheres for each pair
+      originalRedColor: new THREE.Color(0xff0000), // Store original red color
+      originalBlueColor: new THREE.Color(0x0000ff), // Store original blue color
+      highlightTimeout: null, // Initialize highlightTimeout
     },
   ];
   let selectedPairIndex = 0;
@@ -41,6 +44,10 @@ function init() {
     pair.blueSphere = new THREE.Mesh(blueSphereGeometry, blueSphereMaterial);
     pair.blueSphere.position.copy(pair.blue);
     scene.add(pair.blueSphere);
+
+    // Store the original colors
+    pair.originalRedColor = new THREE.Color(0xff0000);
+    pair.originalBlueColor = new THREE.Color(0x0000ff);
   }
 
   pairs.forEach(createPairSpheres);
@@ -363,6 +370,9 @@ function init() {
       pathingType: "none",
       itemCount: 5,
       pathingSpheres: [], // Initialize pathingSpheres for the new pair
+      originalRedColor: new THREE.Color(0xff0000), // Store original red color
+      originalBlueColor: new THREE.Color(0x0000ff), // Store original blue color
+      highlightTimeout: null, // Initialize highlightTimeout
     };
     createPairSpheres(newPair);
     pairs.push(newPair);
@@ -382,7 +392,21 @@ function init() {
 
   function selectPair(index) {
     selectedPairIndex = index;
+
+    // Reset colors and clear timeouts for all pairs
+    pairs.forEach((p, i) => {
+      if (p.highlightTimeout) {
+        clearTimeout(p.highlightTimeout);
+        p.highlightTimeout = null;
+      }
+      if (p.redSphere && p.blueSphere) {
+        p.redSphere.material.color.copy(p.originalRedColor);
+        p.blueSphere.material.color.copy(p.originalBlueColor);
+      }
+    });
+
     const pair = pairs[index];
+
     // Update UI with pair-specific pathing
     document.getElementById("pathing").value = pair.pathingType;
     document.getElementById("itemCount").value = pair.itemCount;
@@ -393,14 +417,14 @@ function init() {
     updatePairList();
 
     // Temporarily change sphere colors
-    const originalRedColor = pair.redSphere.material.color.clone();
-    const originalBlueColor = pair.blueSphere.material.color.clone();
     pair.redSphere.material.color.set(0xffff00); // Highlight color
     pair.blueSphere.material.color.set(0xffff00); // Highlight color
 
-    setTimeout(() => {
-      pair.redSphere.material.color.copy(originalRedColor);
-      pair.blueSphere.material.color.copy(originalBlueColor);
+    // Store the timeout so it can be cleared if needed
+    pair.highlightTimeout = setTimeout(() => {
+      pair.redSphere.material.color.copy(pair.originalRedColor);
+      pair.blueSphere.material.color.copy(pair.originalBlueColor);
+      pair.highlightTimeout = null; // Clear the timeout reference
     }, 1000); // 1 second
   }
 
