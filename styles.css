@@ -1,0 +1,49 @@
+body {
+  margin: 0;
+  overflow: hidden;
+}
+#container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+#info {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  color: white;
+  font-family: monospace;
+  font-size: 14px;
+}
+input {
+  width: 90px;
+}
+.collapsible {
+  cursor: pointer;
+  padding: 5px;
+  background-color: #333;
+  border: none;
+  text-align: left;
+  outline: none;
+  font-size: 14px;
+  color: white;
+}
+.active,
+.collapsible:hover {
+  background-color: #555;
+}
+.content {
+  padding: 0 18px;
+  display: none;
+  overflow: hidden;
+  background-color: #222;
+  color: white;
+  font-size: 12px;
+}
+.copy-btn {
+  cursor: pointer;
+  margin-left: 5px;
+  color: #fff;
+}
