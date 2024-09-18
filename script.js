@@ -91,6 +91,7 @@ function init() {
         updateInputFields();
         updateDistance();
         updatePathing();
+        updatePairList(); // Added to update the pairs list
       }
     }
   }
@@ -196,8 +197,9 @@ function init() {
 
   // Create shortest pathing
   function createShortestPathing(pair, itemCount, lowestPoint) {
-    const startPoint = new THREE.Vector3(0, 0, 0);
-    const endPoint = lowestPoint;
+    const height = -Math.abs(pair.red.y); // Ensure height is always negative
+    const startPoint = new THREE.Vector3(0, height, 0); // Start at (0, height, 0)
+    const endPoint = new THREE.Vector3(pair.red.x, height, pair.red.z); // Path to (red.x, height, red.z)
 
     for (let i = 0; i < itemCount; i++) {
       const t = i / (itemCount - 1);
@@ -461,6 +463,47 @@ function init() {
     renderer.render(scene, camera);
   }
   animate();
+
+  function validateCoordinates() {
+    const pair = pairs[selectedPairIndex];
+    // Read input field values
+    const redX = parseFloat(document.getElementById("redX").value);
+    const redY = parseFloat(document.getElementById("redY").value);
+    const redZ = parseFloat(document.getElementById("redZ").value);
+
+    // Validate input values
+    if (isNaN(redX) || isNaN(redY) || isNaN(redZ)) {
+      alert("Please enter valid numerical values for Red Sphere coordinates.");
+      return;
+    }
+
+    // Create a vector from input
+    const inputVector = new THREE.Vector3(redX, redY, redZ);
+
+    // Clamp to exactly 50 units
+    const clampedVector = inputVector.clone().setLength(50);
+
+    // Update pair's red position to clamped vector
+    pair.red.copy(clampedVector);
+    pair.redSphere.position.copy(pair.red);
+
+    // Update blue sphere's position
+    pair.blue.copy(pair.red.clone().multiplyScalar(-1));
+    pair.blueSphere.position.copy(pair.blue);
+
+    // Update input fields with clamped values
+    document.getElementById("redX").value = pair.red.x.toFixed(6);
+    document.getElementById("redY").value = pair.red.y.toFixed(6);
+    document.getElementById("redZ").value = pair.red.z.toFixed(6);
+
+    // Update related UI elements
+    updateBlueSphereCoords();
+    updateDistance();
+    updatePathing();
+    updatePairList(); // Refresh the pairs list
+  }
+
+  window.validateCoordinates = validateCoordinates; // Ensure it's exposed globally
 }
 
 // Use DOMContentLoaded event to ensure the DOM is fully loaded before running init
@@ -472,7 +515,3 @@ document.addEventListener("DOMContentLoaded", () => {
     console.error("Three.js or OrbitControls not loaded");
   }
 });
-
-function validateCoordinates() {
-  // Implement your validation logic here
-}
