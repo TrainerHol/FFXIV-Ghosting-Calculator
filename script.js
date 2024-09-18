@@ -246,6 +246,77 @@ function init() {
   updateDistance();
   updatePathing();
 
+  // Add event listener for Makeplace export button
+  document.getElementById("exportMakeplace").addEventListener("click", exportMakeplace);
+
+  function exportMakeplace() {
+    const redCoords = redSphere.position;
+    const blueCoords = blueSphere.position;
+    const pathingPoints = pathingSpheres.map((sphere) => sphere.position);
+
+    const makeplaceData = {
+      itemId: 39386,
+      name: "Darkest Hourglass",
+      transform: {
+        location: [0, 0, 0],
+        rotation: [0, 0, 0, 1],
+        scale: [1, 1, 1],
+      },
+      properties: {
+        designName: "GhostingTemplate",
+        scale: 100,
+      },
+      attachments: [
+        {
+          itemId: 24511,
+          name: "Wooden Loft",
+          transform: {
+            location: [redCoords.x * 100, redCoords.z * 100, redCoords.y * -100],
+            rotation: [0, 0, 0, 1],
+            scale: [1, 1, 1],
+          },
+          properties: {
+            color: "E40011FF",
+          },
+        },
+        {
+          itemId: 24511,
+          name: "Wooden Loft",
+          transform: {
+            location: [blueCoords.x * 100, blueCoords.z * 100, blueCoords.y * -100],
+            rotation: [0, 0, 0, 1],
+            scale: [1, 1, 1],
+          },
+          properties: {
+            color: "000EA2FF",
+          },
+        },
+        ...pathingPoints.map((point) => ({
+          itemId: 15971,
+          name: "Knightly Round Table",
+          transform: {
+            location: [point.x * 100, point.z * 100, -Math.abs(point.y) * 100],
+            rotation: [0, 0, 0, 1],
+            scale: [1, 1, 1],
+          },
+          properties: {},
+        })),
+      ],
+    };
+
+    const jsonString = JSON.stringify(makeplaceData, null, 2);
+    const blob = new Blob([jsonString], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `GhostingTemplate-${Math.round(redCoords.x)}-${Math.round(redCoords.y)}-${Math.round(redCoords.z)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
   // Move the animate function inside init
   function animate() {
     requestAnimationFrame(animate);
