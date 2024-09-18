@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
     <title>Ghosting Calculator</title>
     <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
@@ -14,16 +14,47 @@
       Red Sphere: (<input type="number" id="redX" step="0.01" value="50" /><span class="copy-btn" data-target="redX">C</span>, <input type="number" id="redY" step="0.01" value="0" /><span class="copy-btn" data-target="redY">C</span>, <input type="number" id="redZ" step="0.01" value="0" /><span class="copy-btn" data-target="redZ">C</span>) <button id="validateBtn">Clamp/Validate</button><br />
       Blue Sphere: (<span id="blueX"></span><span class="copy-btn" data-target="blueX">C</span>, <span id="blueY"></span><span class="copy-btn" data-target="blueY">C</span>, <span id="blueZ"></span><span class="copy-btn" data-target="blueZ">C</span>)<br />
       Distance: <span id="distance"></span><br />
-      Pathing:
+      Pathing Type:
       <select id="pathing">
         <option value="none">None</option>
         <option value="lowest">Lowest</option>
         <option value="shortest">Shortest</option>
       </select>
       # of items: <input type="number" id="itemCount" min="1" value="5" /> <span id="spacingDelta"></span><br />
-      <button class="collapsible">Coordinates</button>
-      <div class="content" id="coordinateList"></div>
-      <button class="collapsible" id="exportMakeplace">Export Makeplace</button>
+      <button id="addPairBtn">Add Pair</button>
+      <button id="exportMakeplace">Export Makeplace</button>
+
+      <div class="tab">
+        <button class="tablinks" onclick="openTab(event, 'Coordinates')" id="defaultOpen">Coordinates</button>
+        <button class="tablinks" onclick="openTab(event, 'Pairs')">Pairs</button>
+      </div>
+
+      <div id="Coordinates" class="tabcontent">
+        <div id="coordinateList"></div>
+      </div>
+
+      <div id="Pairs" class="tabcontent">
+        <div id="pairList"></div>
+      </div>
     </div>
+
+    <script>
+      function openTab(evt, tabName) {
+        var i, tabcontent, tablinks;
+        tabcontent = document.getElementsByClassName("tabcontent");
+        for (i = 0; i < tabcontent.length; i++) {
+          tabcontent[i].style.display = "none";
+        }
+        tablinks = document.getElementsByClassName("tablinks");
+        for (i = 0; i < tablinks.length; i++) {
+          tablinks[i].className = tablinks[i].className.replace(" active", "");
+        }
+        document.getElementById(tabName).style.display = "block";
+        evt.currentTarget.className += " active";
+      }
+
+      // Open the Coordinates tab by default
+      document.getElementById("defaultOpen").click();
+    </script>
   </body>
 </html>

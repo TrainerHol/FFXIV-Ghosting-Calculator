@@ -13,19 +13,37 @@ function init() {
   const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
   scene.add(sphere);
 
-  // Create the red sphere
-  const redSphereGeometry = new THREE.SphereGeometry(2);
-  const redSphereMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-  const redSphere = new THREE.Mesh(redSphereGeometry, redSphereMaterial);
-  redSphere.position.set(50, 0, 0);
-  scene.add(redSphere);
+  // Add this at the beginning of the init function
+  let pairs = [
+    {
+      red: new THREE.Vector3(50, 0, 0),
+      blue: new THREE.Vector3(-50, 0, 0),
+      redSphere: null,
+      blueSphere: null,
+      locked: false,
+      pathingType: "none",
+      itemCount: 5,
+      pathingSpheres: [], // Added pathingSpheres for each pair
+    },
+  ];
+  let selectedPairIndex = 0;
 
-  // Create the blue sphere
-  const blueSphereGeometry = new THREE.SphereGeometry(2);
-  const blueSphereMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff });
-  const blueSphere = new THREE.Mesh(blueSphereGeometry, blueSphereMaterial);
-  blueSphere.position.copy(redSphere.position).multiplyScalar(-1);
-  scene.add(blueSphere);
+  // Modify the sphere creation part
+  function createPairSpheres(pair) {
+    const redSphereGeometry = new THREE.SphereGeometry(2);
+    const redSphereMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+    pair.redSphere = new THREE.Mesh(redSphereGeometry, redSphereMaterial);
+    pair.redSphere.position.copy(pair.red);
+    scene.add(pair.redSphere);
+
+    const blueSphereGeometry = new THREE.SphereGeometry(2);
+    const blueSphereMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff });
+    pair.blueSphere = new THREE.Mesh(blueSphereGeometry, blueSphereMaterial);
+    pair.blueSphere.position.copy(pair.blue);
+    scene.add(pair.blueSphere);
+  }
+
+  pairs.forEach(createPairSpheres);
 
   // Set up the camera position and controls
   camera.position.set(0, 0, 100);
@@ -65,11 +83,15 @@ function init() {
       const direction = point.clone().normalize();
       const redPosition = direction.clone().multiplyScalar(50);
       const bluePosition = direction.clone().multiplyScalar(-50);
-      redSphere.position.copy(redPosition);
-      blueSphere.position.copy(bluePosition);
-      updateInputFields();
-      updateDistance();
-      updatePathing();
+      if (!pairs[selectedPairIndex].locked) {
+        pairs[selectedPairIndex].red.copy(redPosition);
+        pairs[selectedPairIndex].blue.copy(bluePosition);
+        pairs[selectedPairIndex].redSphere.position.copy(redPosition);
+        pairs[selectedPairIndex].blueSphere.position.copy(bluePosition);
+        updateInputFields();
+        updateDistance();
+        updatePathing();
+      }
     }
   }
 
@@ -79,43 +101,26 @@ function init() {
 
   // Update the input fields with the sphere coordinates
   function updateInputFields() {
-    const redCoords = redSphere.position;
-    document.getElementById("redX").value = redCoords.x.toFixed(6);
-    document.getElementById("redY").value = redCoords.y.toFixed(6);
-    document.getElementById("redZ").value = redCoords.z.toFixed(6);
+    const pair = pairs[selectedPairIndex];
+    document.getElementById("redX").value = pair.red.x.toFixed(6);
+    document.getElementById("redY").value = pair.red.y.toFixed(6);
+    document.getElementById("redZ").value = pair.red.z.toFixed(6);
     updateBlueSphereCoords();
   }
 
   // Update the blue sphere coordinates based on the red sphere
   function updateBlueSphereCoords() {
-    const blueCoords = blueSphere.position;
-    document.getElementById("blueX").textContent = blueCoords.x.toFixed(6);
-    document.getElementById("blueY").textContent = blueCoords.y.toFixed(6);
-    document.getElementById("blueZ").textContent = blueCoords.z.toFixed(6);
+    const pair = pairs[selectedPairIndex];
+    document.getElementById("blueX").textContent = pair.blue.x.toFixed(6);
+    document.getElementById("blueY").textContent = pair.blue.y.toFixed(6);
+    document.getElementById("blueZ").textContent = pair.blue.z.toFixed(6);
   }
 
   // Update the distance between the red and blue spheres
   function updateDistance() {
-    const distance = redSphere.position.distanceTo(blueSphere.position);
+    const pair = pairs[selectedPairIndex];
+    const distance = pair.red.distanceTo(pair.blue);
     document.getElementById("distance").textContent = distance.toFixed(6);
-  }
-
-  // Add event listener to the validate button
-  document.getElementById("validateBtn").addEventListener("click", validateCoordinates);
-
-  function validateCoordinates() {
-    const x = parseFloat(document.getElementById("redX").value);
-    const y = parseFloat(document.getElementById("redY").value);
-    const z = parseFloat(document.getElementById("redZ").value);
-    const newPosition = new THREE.Vector3(x, y, z);
-    const direction = newPosition.clone().normalize();
-    const redPosition = direction.clone().multiplyScalar(50);
-    const bluePosition = direction.clone().multiplyScalar(-50);
-    redSphere.position.copy(redPosition);
-    blueSphere.position.copy(bluePosition);
-    updateInputFields();
-    updateDistance();
-    updatePathing();
   }
 
   // Add North arrow
@@ -125,26 +130,24 @@ function init() {
   arrowHelper.position.set(0, 0, -50);
   scene.add(arrowHelper);
 
-  // Pathing variables
-  const pathingSpheres = [];
-
-  // Update pathing
+  // Update pathing to be per pair
   function updatePathing() {
-    const pathingType = document.getElementById("pathing").value;
-    const itemCount = parseInt(document.getElementById("itemCount").value);
+    const pair = pairs[selectedPairIndex];
+    const pathingType = pair.pathingType || document.getElementById("pathing").value;
+    const itemCount = pair.itemCount || parseInt(document.getElementById("itemCount").value);
 
-    // Clear existing pathing spheres
-    pathingSpheres.forEach((sphere) => {
+    // Clear existing pathing spheres for this pair
+    pair.pathingSpheres.forEach((sphere) => {
       scene.remove(sphere);
     });
-    pathingSpheres.length = 0;
+    pair.pathingSpheres.length = 0;
 
     if (pathingType === "lowest") {
-      const lowestPoint = new THREE.Vector3(redSphere.position.x, Math.abs(redSphere.position.y), redSphere.position.z);
-      createLowestPathing(itemCount, lowestPoint);
+      const lowestPoint = new THREE.Vector3(pair.red.x, Math.abs(pair.red.y), pair.red.z);
+      createLowestPathing(pair, itemCount, lowestPoint);
     } else if (pathingType === "shortest") {
-      const lowestPoint = new THREE.Vector3(redSphere.position.x, -redSphere.position.y, redSphere.position.z);
-      createShortestPathing(itemCount, lowestPoint);
+      const lowestPoint = new THREE.Vector3(pair.red.x, -pair.red.y, pair.red.z);
+      createShortestPathing(pair, itemCount, lowestPoint);
     }
 
     updateCoordinateList();
@@ -154,34 +157,25 @@ function init() {
   // Add this new function to calculate and update the spacing delta
   function updateSpacingDelta() {
     const spacingDeltaElement = document.getElementById("spacingDelta");
-    if (pathingSpheres.length < 2) {
+    const pair = pairs[selectedPairIndex];
+    if (pair.pathingSpheres.length < 2) {
       spacingDeltaElement.textContent = "";
       return;
     }
 
     let totalHorizontalDistance = 0;
-    for (let i = 1; i < pathingSpheres.length; i++) {
-      const prev = pathingSpheres[i - 1].position;
-      const current = pathingSpheres[i].position;
+    for (let i = 1; i < pair.pathingSpheres.length; i++) {
+      const prev = pair.pathingSpheres[i - 1].position;
+      const current = pair.pathingSpheres[i].position;
       const horizontalDistance = Math.sqrt(Math.pow(current.x - prev.x, 2) + Math.pow(current.z - prev.z, 2));
       totalHorizontalDistance += horizontalDistance;
     }
-    const averageHorizontalSpacing = totalHorizontalDistance / (pathingSpheres.length - 1);
+    const averageHorizontalSpacing = totalHorizontalDistance / (pair.pathingSpheres.length - 1);
     spacingDeltaElement.textContent = `(Spacing Delta: ${averageHorizontalSpacing.toFixed(2)})`;
   }
 
-  // Update the event listeners to include the new updateSpacingDelta function
-  document.getElementById("pathing").addEventListener("change", () => {
-    updatePathing();
-    updateSpacingDelta();
-  });
-  document.getElementById("itemCount").addEventListener("change", () => {
-    updatePathing();
-    updateSpacingDelta();
-  });
-
   // Create lowest pathing
-  function createLowestPathing(itemCount, lowestPoint) {
+  function createLowestPathing(pair, itemCount, lowestPoint) {
     const startPoint = new THREE.Vector3(0, -50, 0);
     const endPoint = new THREE.Vector3(lowestPoint.x, -50, lowestPoint.z);
     const horizontalDistance = endPoint.distanceTo(startPoint);
@@ -196,31 +190,30 @@ function init() {
       const y = -Math.sqrt(2500 - horizontalMagnitude * horizontalMagnitude);
 
       const point = new THREE.Vector3(x, y, z);
-      const sphere = createPathingSphere(point);
-      pathingSpheres.push(sphere);
+      createPathingSphere(pair, point);
     }
   }
 
   // Create shortest pathing
-  function createShortestPathing(itemCount, lowestPoint) {
+  function createShortestPathing(pair, itemCount, lowestPoint) {
     const startPoint = new THREE.Vector3(0, 0, 0);
     const endPoint = lowestPoint;
 
     for (let i = 0; i < itemCount; i++) {
       const t = i / (itemCount - 1);
       const point = new THREE.Vector3().lerpVectors(startPoint, endPoint, t);
-      const sphere = createPathingSphere(point);
-      pathingSpheres.push(sphere);
+      createPathingSphere(pair, point);
     }
   }
 
   // Create pathing sphere
-  function createPathingSphere(point) {
+  function createPathingSphere(pair, point) {
     const geometry = new THREE.SphereGeometry(0.5);
     const material = new THREE.MeshBasicMaterial({ color: 0x8b2bff });
     const sphere = new THREE.Mesh(geometry, material);
     sphere.position.copy(point);
     scene.add(sphere);
+    pair.pathingSpheres.push(sphere);
     return sphere;
   }
 
@@ -229,25 +222,15 @@ function init() {
     const coordinateList = document.getElementById("coordinateList");
     coordinateList.innerHTML = "";
 
-    pathingSpheres.forEach((sphere, index) => {
-      const coords = sphere.position;
-      const item = document.createElement("div");
-      item.innerHTML = `${index + 1}: (<span id="pathX${index}">${coords.x.toFixed(6)}</span><span class="copy-btn" data-target="pathX${index}">C</span>, <span id="pathY${index}">${coords.y.toFixed(6)}</span><span class="copy-btn" data-target="pathY${index}">C</span>, <span id="pathZ${index}">${coords.z.toFixed(6)}</span><span class="copy-btn" data-target="pathZ${index}">C</span>)`;
-      coordinateList.appendChild(item);
+    pairs.forEach((pair) => {
+      pair.pathingSpheres.forEach((sphere, index) => {
+        const coords = sphere.position;
+        const item = document.createElement("div");
+        item.innerHTML = `${index + 1}: (<span id="pathX${index}">${coords.x.toFixed(6)}</span><span class="copy-btn" data-target="pathX${index}">C</span>, <span id="pathY${index}">${coords.y.toFixed(6)}</span><span class="copy-btn" data-target="pathY${index}">C</span>, <span id="pathZ${index}">${coords.z.toFixed(6)}</span><span class="copy-btn" data-target="pathZ${index}">C</span>)`;
+        coordinateList.appendChild(item);
+      });
     });
   }
-
-  // Collapsible list functionality
-  const collapsible = document.getElementsByClassName("collapsible")[0];
-  collapsible.addEventListener("click", function () {
-    this.classList.toggle("active");
-    const content = this.nextElementSibling;
-    if (content.style.display === "block") {
-      content.style.display = "none";
-    } else {
-      content.style.display = "block";
-    }
-  });
 
   // Copy button functionality
   document.addEventListener("click", function (event) {
@@ -266,12 +249,18 @@ function init() {
   });
 
   // Add event listeners for pathing type and item count changes
-  document.getElementById("pathing").addEventListener("change", updatePathing);
-  document.getElementById("itemCount").addEventListener("change", updatePathing);
+  document.getElementById("pathing").addEventListener("change", () => {
+    pairs[selectedPairIndex].pathingType = document.getElementById("pathing").value;
+    updatePathing();
+  });
+  document.getElementById("itemCount").addEventListener("change", () => {
+    pairs[selectedPairIndex].itemCount = parseInt(document.getElementById("itemCount").value);
+    updatePathing();
+  });
 
   // Set initial position of red sphere and update scene
-  redSphere.position.set(50, 0, 0);
-  blueSphere.position.set(-50, 0, 0);
+  pairs[selectedPairIndex].redSphere.position.set(50, 0, 0);
+  pairs[selectedPairIndex].blueSphere.position.set(-50, 0, 0);
   updateInputFields();
   updateDistance();
   updatePathing();
@@ -280,11 +269,8 @@ function init() {
   // Add event listener for Makeplace export button
   document.getElementById("exportMakeplace").addEventListener("click", exportMakeplace);
 
+  // Update exportMakeplace to export a single file with all pairs
   function exportMakeplace() {
-    const redCoords = redSphere.position;
-    const blueCoords = blueSphere.position;
-    const pathingPoints = pathingSpheres.map((sphere) => sphere.position);
-
     const makeplaceData = {
       itemId: 39386,
       name: "Darkest Hourglass",
@@ -297,12 +283,19 @@ function init() {
         designName: "GhostingTemplate",
         scale: 100,
       },
-      attachments: [
+      attachments: [],
+    };
+
+    pairs.forEach((pair, index) => {
+      const rounded = (vec) => `${Math.round(vec.x)},${Math.round(vec.y)},${Math.round(vec.z)}`;
+      const filenameSuffix = `${rounded(pair.red)}-${pair.pathingSpheres.length}p`;
+
+      makeplaceData.attachments.push(
         {
           itemId: 24511,
-          name: "Wooden Loft",
+          name: `Wooden Loft (Red ${index + 1})`,
           transform: {
-            location: [redCoords.x * 100, redCoords.z * 100, redCoords.y * -100],
+            location: [pair.red.x * 100, pair.red.z * 100, pair.red.y * 100], // Swapped Y and Z
             rotation: [0, 0, 0, 1],
             scale: [1, 1, 1],
           },
@@ -312,28 +305,32 @@ function init() {
         },
         {
           itemId: 24511,
-          name: "Wooden Loft",
+          name: `Wooden Loft (Blue ${index + 1})`,
           transform: {
-            location: [blueCoords.x * 100, blueCoords.z * 100, blueCoords.y * -100],
+            location: [pair.blue.x * 100, pair.blue.z * 100, pair.blue.y * 100], // Swapped Y and Z
             rotation: [0, 0, 0, 1],
             scale: [1, 1, 1],
           },
           properties: {
             color: "000EA2FF",
           },
-        },
-        ...pathingPoints.map((point) => ({
+        }
+      );
+
+      // Add pathing points for this pair
+      makeplaceData.attachments.push(
+        ...pair.pathingSpheres.map((sphere) => ({
           itemId: 15971,
           name: "Knightly Round Table",
           transform: {
-            location: [point.x * 100, point.z * 100, -Math.abs(point.y) * 100],
+            location: [sphere.position.x * 100, sphere.position.z * 100, sphere.position.y * 100], // Swapped Y and Z
             rotation: [0, 0, 0, 1],
             scale: [1, 1, 1],
           },
           properties: {},
-        })),
-      ],
-    };
+        }))
+      );
+    });
 
     const jsonString = JSON.stringify(makeplaceData, null, 2);
     const blob = new Blob([jsonString], { type: "application/json" });
@@ -341,12 +338,122 @@ function init() {
 
     const a = document.createElement("a");
     a.href = url;
-    a.download = `GhostingTemplate-${Math.round(redCoords.x)}-${Math.round(redCoords.y)}-${Math.round(redCoords.z)}.json`;
+    const mainPair = pairs[0];
+    const roundedRed = `${Math.round(mainPair.red.x)}`;
+    const roundedY = `${Math.round(mainPair.red.z)}`; // Swapped Y and Z
+    const roundedZ = `${Math.round(mainPair.red.y)}`; // Swapped Y and Z
+    const pointsCount = mainPair.pathingSpheres.length;
+    a.download = `GhostingTemplate-${roundedRed}-${roundedY}-${roundedZ}-${pointsCount}p.json`; // Updated filename
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   }
+
+  // Update functions to handle pathing per pair
+  function addPair() {
+    const newPair = {
+      red: new THREE.Vector3(50, 0, 0),
+      blue: new THREE.Vector3(-50, 0, 0),
+      redSphere: null,
+      blueSphere: null,
+      locked: false,
+      pathingType: "none",
+      itemCount: 5,
+      pathingSpheres: [], // Initialize pathingSpheres for the new pair
+    };
+    createPairSpheres(newPair);
+    pairs.push(newPair);
+    updatePairList();
+    selectPair(pairs.length - 1);
+  }
+
+  function removePair(index) {
+    if (pairs.length > 1) {
+      scene.remove(pairs[index].redSphere);
+      scene.remove(pairs[index].blueSphere);
+      pairs.splice(index, 1);
+      updatePairList();
+      selectPair(Math.min(index, pairs.length - 1));
+    }
+  }
+
+  function selectPair(index) {
+    selectedPairIndex = index;
+    const pair = pairs[index];
+    // Update UI with pair-specific pathing
+    document.getElementById("pathing").value = pair.pathingType;
+    document.getElementById("itemCount").value = pair.itemCount;
+    updateInputFields();
+    updateDistance();
+    updatePathing();
+    updateSpacingDelta();
+    updatePairList();
+
+    // Temporarily change sphere colors
+    const originalRedColor = pair.redSphere.material.color.clone();
+    const originalBlueColor = pair.blueSphere.material.color.clone();
+    pair.redSphere.material.color.set(0xffff00); // Highlight color
+    pair.blueSphere.material.color.set(0xffff00); // Highlight color
+
+    setTimeout(() => {
+      pair.redSphere.material.color.copy(originalRedColor);
+      pair.blueSphere.material.color.copy(originalBlueColor);
+    }, 1000); // 1 second
+  }
+
+  function updatePairList() {
+    const pairList = document.getElementById("pairList");
+    pairList.innerHTML = "";
+
+    pairs.forEach((pair, index) => {
+      const item = document.createElement("div");
+      item.classList.add("pair-item");
+      if (index === selectedPairIndex) {
+        item.classList.add("selected-pair");
+      }
+      const coords = `(${pair.red.x.toFixed(2)}, ${pair.red.y.toFixed(2)}, ${pair.red.z.toFixed(2)})`;
+      const lockEmoji = pair.locked ? "🔒" : "🔓";
+      item.innerHTML = `
+        Pair ${index + 1}: ${coords}
+        <button onclick="removePair(${index})">🗑️</button>
+        <span class="lock-btn" onclick="toggleLock(${index})">${lockEmoji}</span>
+      `;
+      item.addEventListener("click", () => selectPair(index));
+      pairList.appendChild(item);
+    });
+  }
+
+  function toggleLock(index) {
+    pairs[index].locked = !pairs[index].locked;
+    updatePairList();
+  }
+
+  // Add these new functions to the global scope
+  window.selectPair = selectPair;
+  window.removePair = removePair;
+  window.toggleLock = toggleLock;
+
+  // Move the event listener assignments into a separate function
+  function addEventListeners() {
+    const addPairBtn = document.getElementById("addPairBtn");
+    const pathingSelect = document.getElementById("pathing");
+    const itemCountInput = document.getElementById("itemCount");
+    const validateBtn = document.getElementById("validateBtn");
+    const exportMakeplaceBtn = document.getElementById("exportMakeplace");
+
+    if (addPairBtn) addPairBtn.addEventListener("click", addPair);
+    if (pathingSelect) pathingSelect.addEventListener("change", updatePathing);
+    if (itemCountInput) itemCountInput.addEventListener("change", updatePathing);
+    if (validateBtn) validateBtn.addEventListener("click", validateCoordinates);
+    if (exportMakeplaceBtn) exportMakeplaceBtn.addEventListener("click", exportMakeplace);
+  }
+
+  // Call updatePairList and addEventListeners after a short delay
+  setTimeout(() => {
+    updatePairList();
+    addEventListeners();
+  }, 0);
 
   // Move the animate function inside init
   function animate() {
@@ -356,5 +463,16 @@ function init() {
   animate();
 }
 
-// Add an event listener to run the init function after the DOM has loaded
-document.addEventListener("DOMContentLoaded", init);
+// Use DOMContentLoaded event to ensure the DOM is fully loaded before running init
+document.addEventListener("DOMContentLoaded", () => {
+  // Ensure Three.js and OrbitControls are loaded before initializing
+  if (typeof THREE !== "undefined" && typeof THREE.OrbitControls !== "undefined") {
+    init();
+  } else {
+    console.error("Three.js or OrbitControls not loaded");
+  }
+});
+
+function validateCoordinates() {
+  // Implement your validation logic here
+}
