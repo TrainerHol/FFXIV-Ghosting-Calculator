@@ -57,7 +57,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const z = (item.transform.location[1] / 100).toFixed(2);
     const name = `${item.name} (${x}, ${y}, ${z})`;
     const color = item.properties && item.properties.color ? item.properties.color : "";
-    const colorSpan = color ? `<span style="display:inline-block;width:1em;height:1em;background-color:#${color};"></span>` : "";
+    const colorSpan = color ? `<span style="display:inline-block;width:0.5em;height:0.5em;background-color:#${color};"></span>` : "";
     return { name: `${name} ${colorSpan}`, info: "" };
   }
 
@@ -67,7 +67,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   clearListBtn.addEventListener("click", () => {
     furnitureItems.innerHTML = "";
-    saveFurnitureItems(); // This line is correct, but let's make sure it's working
+    saveFurnitureItems();
   });
 
   function addFurnitureItem(item = { name: "", info: "" }) {
@@ -210,8 +210,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }, 300);
     });
 
-    saveFurnitureItems(); // This line is correct, but let's make sure it's working
-    return false;
+    saveFurnitureItems();
   }
 
   function handleDragEnd() {
