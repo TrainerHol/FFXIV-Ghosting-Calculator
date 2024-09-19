@@ -6,12 +6,60 @@ document.addEventListener("DOMContentLoaded", () => {
   const infoLabels = document.getElementById("infoLabels");
 
   uploadBtn.addEventListener("click", () => {
-    // Simulating file upload and processing
-    setTimeout(() => {
-      // ... existing code ...
-      loadFurnitureItems();
-    }, 1000);
+    const fileInput = document.createElement("input");
+    fileInput.type = "file";
+    fileInput.accept = ".json";
+    fileInput.addEventListener("change", handleFileUpload);
+    fileInput.click();
   });
+
+  function handleFileUpload(event) {
+    const file = event.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const jsonData = JSON.parse(e.target.result);
+          processMakeplaceFile(jsonData);
+        } catch (error) {
+          console.error("Error parsing JSON file:", error);
+          alert("Error parsing JSON file. Please make sure it's a valid Makeplace file.");
+        }
+      };
+      reader.readAsText(file);
+    }
+  }
+
+  function processMakeplaceFile(data) {
+    furnitureItems.innerHTML = ""; // Clear existing items
+    const items = [];
+
+    // Process interiorFurniture
+    if (data.interiorFurniture) {
+      data.interiorFurniture.forEach((item) => {
+        items.push(createItemFromMakeplaceData(item));
+        if (item.attachments) {
+          item.attachments.forEach((attachment) => {
+            items.push(createItemFromMakeplaceData(attachment));
+          });
+        }
+      });
+    }
+
+    // Display and save the processed items
+    items.forEach((item) => addFurnitureItem(item));
+    saveFurnitureItems();
+  }
+
+  function createItemFromMakeplaceData(item) {
+    const x = (item.transform.location[0] / 100).toFixed(2);
+    const y = (item.transform.location[2] / 100).toFixed(2);
+    const z = (item.transform.location[1] / 100).toFixed(2);
+    const name = `${item.name} (${x}, ${y}, ${z})`;
+    const color = item.properties && item.properties.color ? item.properties.color : "";
+    const colorSpan = color ? `<span style="display:inline-block;width:1em;height:1em;background-color:#${color};"></span>` : "";
+    return { name: `${name} ${colorSpan}`, info: "" };
+  }
 
   addItemBtn.addEventListener("click", () => {
     addFurnitureItem();
