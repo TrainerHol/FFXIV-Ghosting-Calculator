@@ -60,6 +60,7 @@ body {
   flex: 1; /* Ensure it grows to fill available space */
   min-height: 0; /* Allow it to shrink properly */
   padding-bottom: 3%;
+  padding-right: 20px;
 }
 
 .notes-panel {
