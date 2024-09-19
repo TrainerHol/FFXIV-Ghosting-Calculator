@@ -1,3 +1,6 @@
+// Define blueSpheresMap at the global scope
+const blueSpheresMap = new Map();
+
 document.addEventListener("DOMContentLoaded", () => {
   const uploadBtn = document.getElementById("uploadBtn");
   const addItemBtn = document.getElementById("addItemBtn");
@@ -349,6 +352,16 @@ document.addEventListener("DOMContentLoaded", () => {
       if (index >= total) return;
       for (let i = index; i < index + 5 && i < total; i++) {
         allItems[i].classList.add("highlighted");
+
+        // Highlight the corresponding blue sphere
+        const infoLabel = allItems[i].querySelector(".info-label").textContent.trim();
+        const sphere = blueSpheresMap.get(infoLabel);
+        if (sphere) {
+          sphere.material.color.set(0xffff00); // Change to yellow
+          setTimeout(() => {
+            sphere.material.color.set(0x0000ff); // Revert to blue
+          }, 1000);
+        }
       }
       setTimeout(() => {
         for (let i = index; i < index + 5 && i < total; i++) {
@@ -427,8 +440,8 @@ document.addEventListener("DOMContentLoaded", () => {
   // Initialize Three.js
   initializeThreeJS();
 
-  // Expose visualizeDisappearance and scrollToTrigger to the global scope
-  window.visualizeDisappearance = visualizeDisappearance;
+  // Expose visualizeDisappearance and scrollToTrigger to the global scope after their definitions
+  window.visualizeDisappearance = visualizeDisappearance; // Ensure this is after the function is defined
   window.scrollToTrigger = scrollToTrigger;
 });
 
@@ -444,9 +457,6 @@ function initializeThreeJS() {
   camera.position.set(0, 0, 100);
 
   const controls = new THREE.OrbitControls(camera, renderer.domElement);
-
-  // Invert the Z-axis
-  scene.scale.z = -1;
 
   // Add XYZ axes with labels
   const axesHelper = new THREE.AxesHelper(50);
@@ -479,16 +489,22 @@ function initializeThreeJS() {
 
   // Add blue spheres for furniture coordinates
   const furnitureItemsData = JSON.parse(localStorage.getItem("furnitureItems")) || [];
-  furnitureItemsData.forEach((item) => {
+  furnitureItemsData.forEach((item, index) => {
     if (!item.coordinates) return; // Skip items without coordinates
     const { x, y, z } = item.coordinates;
-    // Normalize to fit within 50 radius sphere
-    const normalized = normalizeVector(new THREE.Vector3(x, y, z), 50);
+
+    // Ensure the coordinates are within the 50-radius sphere
+    const vector = new THREE.Vector3(x, y, z);
+    vector.clampLength(0, 50); // Scale down if necessary
+
     const blueSphereGeometry = new THREE.SphereGeometry(1, 16, 16);
     const blueSphereMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff });
     const blueSphere = new THREE.Mesh(blueSphereGeometry, blueSphereMaterial);
-    blueSphere.position.copy(normalized);
+    blueSphere.position.copy(vector);
     scene.add(blueSphere);
+
+    // Map the furniture item's info label to its corresponding blue sphere
+    blueSpheresMap.set(item.info, blueSphere);
   });
 
   // Handle window resize
@@ -510,7 +526,7 @@ function initializeThreeJS() {
   animate();
 }
 
-// Helper function to normalize vectors
+// Helper function to normalize vectors (if needed)
 function normalizeVector(vector, maxRadius) {
   const length = vector.length();
   if (length === 0) return vector;
