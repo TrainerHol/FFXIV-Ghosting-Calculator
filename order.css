@@ -7,12 +7,38 @@
 
 body {
   font-family: "Final Fantasy Script Collection - Final Fantasy VII", sans-serif;
-  font-size: 18px; 
+  font-size: 18px;
   background-color: #000;
   color: #fff;
   line-height: 1.5;
   margin: 0;
-  padding: 0; 
+  padding: 0;
+}
+
+/* Webkit scrollbar styles (Chrome, Safari, Edge) */
+::-webkit-scrollbar {
+  width: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: #06093b;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #aeafae;
+  border-radius: 6px;
+  border: 2px solid #06093b;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #d3d3d3;
+}
+
+/* Firefox scrollbar styles */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #aeafae #06093b;
+}
 
 .container {
   max-width: 100%;
@@ -54,7 +80,7 @@ body {
 }
 
 .furniture-list {
-  width: 50%;
+  width: 40%;
   background-image: linear-gradient(#0d2289, #06093b);
   border: 1px solid #c6c6c6;
   border-radius: 8px;
@@ -62,6 +88,7 @@ body {
   padding: 20px;
   position: relative;
   margin-top: 10px;
+  margin-left: 20px; /* Added 10px spacing to the left */
   overflow-y: auto;
   max-height: 80vh;
 }
@@ -74,15 +101,15 @@ body {
 .items {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 3px;
 }
 
 .furniture-item {
   cursor: move;
-  padding: 10px;
+  padding: 1px;
   border-radius: 4px;
   transition: all 0.3s;
-  font-size: 20px;
+  font-size: 26px;
   position: relative;
   margin-bottom: 10px;
   display: flex;
@@ -94,7 +121,7 @@ body {
 .furniture-item-content {
   width: 80%;
   background: rgba(255, 255, 255, 0.1);
-  padding: 10px;
+  padding-left: 10px;
   border-radius: 4px;
   margin-right: 10px;
 }
@@ -118,9 +145,8 @@ body {
   font-size: 18px;
   color: #aeafae;
   flex-grow: 1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow: auto;
 }
 
 .banner {
@@ -128,24 +154,20 @@ body {
   justify-content: space-between;
   align-items: center;
   background-color: #0d2289;
-  padding: 5px 20px; 
-  margin-bottom: 20px; 
+  padding: 5px 20px;
+  margin-bottom: 20px;
 }
 
 .info-labels {
- 
-
-  display: flex; 
+  display: flex;
   flex-direction: column;
-  gap: 10px; 
-
+  gap: 10px;
 }
 
 .info-label-container {
   display: flex;
   align-items: center;
-  height: 44px; 
-  margin-bottom: 10px; 
+}
 
 .arrow {
   width: 0;

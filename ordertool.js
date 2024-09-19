@@ -19,7 +19,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   clearListBtn.addEventListener("click", () => {
     furnitureItems.innerHTML = "";
-    saveFurnitureItems();
+    saveFurnitureItems(); // This line is correct, but let's make sure it's working
   });
 
   function addFurnitureItem(item = { name: "", info: "" }) {
@@ -31,8 +31,7 @@ document.addEventListener("DOMContentLoaded", () => {
         <div class="editable" contenteditable="true">${item.name || "Edit Name"}</div>
       </div>
       <div class="info-label-container">
-        <div class="arrow"></div>
-        <div class="info-label editable" contenteditable="true">${item.info || "Edit Info"}</div>
+        <div class="info-label editable" contenteditable="true">${item.info || ""}</div>
       </div>
     `;
     addDragAndDropHandlers(itemElement);
@@ -43,6 +42,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     furnitureItems.appendChild(itemElement);
+    saveFurnitureItems(); // Add this line to save when a new item is added
     return itemElement;
   }
 
@@ -162,7 +162,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }, 300);
     });
 
-    saveFurnitureItems();
+    saveFurnitureItems(); // This line is correct, but let's make sure it's working
     return false;
   }
 
@@ -175,19 +175,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function saveFurnitureItems() {
     const items = [];
-    furnitureItems.querySelectorAll(".furniture-item").forEach((item, index) => {
+    furnitureItems.querySelectorAll(".furniture-item").forEach((item) => {
       const name = item.querySelector(".furniture-item-content .editable").textContent.trim();
       const info = item.querySelector(".info-label").textContent.trim();
-      if (name && info) {
-        // Ensure both fields are filled
-        items.push({ name, info });
-      }
+      items.push({ name, info }); // Remove the condition to always save items, even if empty
     });
-    sessionStorage.setItem("furnitureItems", JSON.stringify(items));
+    localStorage.setItem("furnitureItems", JSON.stringify(items)); // Change to localStorage
   }
 
   function loadFurnitureItems() {
-    const items = JSON.parse(sessionStorage.getItem("furnitureItems")) || [];
+    const items = JSON.parse(localStorage.getItem("furnitureItems")) || []; // Change to localStorage
     displayFurnitureItems(items);
     updateInfoLabels();
   }
