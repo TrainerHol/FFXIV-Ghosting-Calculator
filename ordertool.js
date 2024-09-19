@@ -3,7 +3,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const addItemBtn = document.getElementById("addItemBtn");
   const clearListBtn = document.getElementById("clearListBtn"); // New button
   const furnitureItems = document.getElementById("furnitureItems");
-  const infoLabels = document.getElementById("infoLabels");
+
+  // Define pairs list
+  let pairs = [];
 
   uploadBtn.addEventListener("click", () => {
     const fileInput = document.createElement("input");
@@ -58,7 +60,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const name = `${item.name} (${x}, ${y}, ${z})`;
     const color = item.properties && item.properties.color ? item.properties.color : "";
     const colorSpan = color ? `<span style="display:inline-block;width:0.5em;height:0.5em;background-color:#${color};"></span>` : "";
-    return { name: `${name} ${colorSpan}`, info: "" };
+    return {
+      name: `${name} ${colorSpan}`,
+      info: "",
+      coordinates: { x: parseFloat(x), y: parseFloat(y), z: parseFloat(z) }, // Added coordinates
+    };
   }
 
   addItemBtn.addEventListener("click", () => {
@@ -91,28 +97,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
     furnitureItems.appendChild(itemElement);
     saveFurnitureItems(); // Add this line to save when a new item is added
+    computeGhostingPairs(); // Added
     return itemElement;
-  }
-
-  function updateInfoLabels() {
-    infoLabels.innerHTML = "";
-    furnitureItems.querySelectorAll(".furniture-item").forEach((item, index) => {
-      const infoLabelContainer = document.createElement("div");
-      infoLabelContainer.className = "info-label-container";
-      infoLabelContainer.innerHTML = `
-        <div class="arrow"></div>
-        <div class="info-label editable" contenteditable="true">${item.querySelector(".furniture-item-content .editable").textContent}</div>
-      `;
-      infoLabels.appendChild(infoLabelContainer);
-
-      // Save changes on blur
-      infoLabelContainer.querySelector(".editable").addEventListener("blur", saveFurnitureItems);
-    });
   }
 
   function displayFurnitureItems(items) {
     furnitureItems.innerHTML = "";
     items.forEach((item) => addFurnitureItem(item));
+    computeGhostingPairs(); // Added
   }
 
   function addDragAndDropHandlers(element) {
@@ -211,6 +203,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     saveFurnitureItems();
+    computeGhostingPairs(); // Added
   }
 
   function handleDragEnd() {
@@ -234,18 +227,51 @@ document.addEventListener("DOMContentLoaded", () => {
   function loadFurnitureItems() {
     const items = JSON.parse(localStorage.getItem("furnitureItems")) || [];
     displayFurnitureItems(items);
-    updateInfoLabels();
   }
 
-  function updateInfoLabelsOrder(fromIndex, toIndex) {
-    const infoLabelContainers = Array.from(infoLabels.querySelectorAll(".info-label-container"));
-    const movedLabel = infoLabelContainers[fromIndex];
+  // Add function to compute ghosting pairs
+  function computeGhostingPairs() {
+    pairs = [];
+    const items = Array.from(furnitureItems.children)
+      .map((item) => {
+        const nameText = item.querySelector(".furniture-item-content .editable").textContent;
+        // Updated regex to handle negative numbers
+        const coordsMatch = nameText.match(/\((-?\d+\.\d+),\s*(-?\d+\.\d+),\s*(-?\d+\.\d+)\)/);
+        if (coordsMatch) {
+          return {
+            element: item,
+            x: parseFloat(coordsMatch[1]),
+            y: parseFloat(coordsMatch[2]),
+            z: parseFloat(coordsMatch[3]),
+          };
+        }
+        return null;
+      })
+      .filter((item) => item !== null); // Removed the magnitude filter
 
-    if (fromIndex < toIndex) {
-      infoLabels.insertBefore(movedLabel, infoLabelContainers[toIndex + 1]);
-    } else {
-      infoLabels.insertBefore(movedLabel, infoLabelContainers[toIndex]);
+    let triggerNumber = 1;
+    // Reset existing info labels in each furniture item
+    items.forEach((item) => {
+      item.element.querySelector(".info-label").textContent = "";
+    });
+
+    for (let i = 0; i < items.length; i++) {
+      for (let j = i + 1; j < items.length; j++) {
+        const distance = Math.sqrt(Math.pow(items[i].x - items[j].x, 2) + Math.pow(items[i].y - items[j].y, 2) + Math.pow(items[i].z - items[j].z, 2));
+        // Debugging log to verify distance calculations
+        console.log(`Distance between "${items[i].element.querySelector(".editable").textContent}" and "${items[j].element.querySelector(".editable").textContent}": ${distance.toFixed(2)}`);
+        if (distance >= 99.9) {
+          pairs.push({ a: items[i], b: items[j], trigger: triggerNumber });
+          // Assign Trigger labels within each furniture item
+          items[i].element.querySelector(".info-label").textContent = `Trigger #${triggerNumber} A`;
+          items[j].element.querySelector(".info-label").textContent = `Trigger #${triggerNumber} B`;
+          triggerNumber++;
+        }
+      }
     }
+
+    // Optional: Log the pairs for verification
+    console.log("Identified Ghosting Pairs:", pairs);
   }
 
   loadFurnitureItems();
