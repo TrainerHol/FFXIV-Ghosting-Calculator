@@ -43,6 +43,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     furnitureItems.appendChild(itemElement);
+    return itemElement;
   }
 
   function updateInfoLabels() {
@@ -52,7 +53,7 @@ document.addEventListener("DOMContentLoaded", () => {
       infoLabelContainer.className = "info-label-container";
       infoLabelContainer.innerHTML = `
         <div class="arrow"></div>
-        <div class="info-label editable" contenteditable="true">${item.querySelector(".editable").textContent}</div>
+        <div class="info-label editable" contenteditable="true">${item.querySelector(".furniture-item-content .editable").textContent}</div>
       `;
       infoLabels.appendChild(infoLabelContainer);
 
@@ -74,9 +75,11 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   let dragSrcEl = null;
+  let dragSrcIndex = null;
 
   function handleDragStart(e) {
     dragSrcEl = this;
+    dragSrcIndex = Array.from(furnitureItems.children).indexOf(this);
     e.dataTransfer.effectAllowed = "move";
     e.dataTransfer.setData("text/html", this.innerHTML);
     this.classList.add("dragging");
@@ -87,38 +90,87 @@ document.addEventListener("DOMContentLoaded", () => {
       e.preventDefault();
     }
     e.dataTransfer.dropEffect = "move";
+    const targetItem = e.target.closest(".furniture-item");
+    if (targetItem && targetItem !== dragSrcEl) {
+      const targetRect = targetItem.getBoundingClientRect();
+      const afterMiddle = e.clientY > targetRect.top + targetRect.height / 2;
+
+      furnitureItems.querySelectorAll(".furniture-item").forEach((item) => item.classList.remove("drag-over", "drag-over-top", "drag-over-bottom"));
+
+      targetItem.classList.add("drag-over", afterMiddle ? "drag-over-bottom" : "drag-over-top");
+    }
     return false;
   }
 
   function handleDrop(e) {
-    if (e.stopPropagation) {
-      e.stopPropagation();
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (dragSrcEl === this) return false;
+
+    const targetItem = e.target.closest(".furniture-item");
+    if (!targetItem) return false;
+
+    const allItems = Array.from(furnitureItems.children);
+    const fromIndex = allItems.indexOf(dragSrcEl);
+    const toIndex = allItems.indexOf(targetItem);
+
+    const targetRect = targetItem.getBoundingClientRect();
+    const afterMiddle = e.clientY > targetRect.top + targetRect.height / 2;
+
+    // Store the initial positions of all items
+    const initialPositions = allItems.map((item) => item.getBoundingClientRect().top);
+
+    // Remove the dragged item from its original position
+    dragSrcEl.remove();
+
+    // Insert the dragged item at its new position
+    if (afterMiddle) {
+      furnitureItems.insertBefore(dragSrcEl, targetItem.nextSibling);
+    } else {
+      furnitureItems.insertBefore(dragSrcEl, targetItem);
     }
-    if (dragSrcEl !== this) {
-      const allItems = Array.from(furnitureItems.querySelectorAll(".furniture-item"));
-      const fromIndex = allItems.indexOf(dragSrcEl);
-      const toIndex = allItems.indexOf(this);
 
-      // Swap the HTML content
-      dragSrcEl.innerHTML = this.innerHTML;
-      this.innerHTML = e.dataTransfer.getData("text/html");
+    // Animate the movement
+    requestAnimationFrame(() => {
+      const items = furnitureItems.querySelectorAll(".furniture-item");
+      items.forEach((item, index) => {
+        const itemRect = item.getBoundingClientRect();
+        const furnitureRect = furnitureItems.getBoundingClientRect();
+        const newTop = itemRect.top - furnitureRect.top;
+        const oldTop = initialPositions[index] - furnitureRect.top;
+        const deltaY = newTop - oldTop;
 
-      // Reattach event listeners after swapping
-      addDragAndDropHandlers(dragSrcEl);
-      addDragAndDropHandlers(this);
+        // Only animate items that have changed position
+        if (Math.abs(deltaY) > 1) {
+          item.style.transform = `translateY(${-deltaY}px)`;
+          item.style.transition = "none";
 
-      // Update info labels order
-      updateInfoLabelsOrder(fromIndex, toIndex);
+          requestAnimationFrame(() => {
+            item.style.transform = "";
+            item.style.transition = "transform 0.3s ease-out";
+          });
+        }
+      });
 
-      // Save the updated order
-      saveFurnitureItems();
-    }
+      // Reset styles after animation
+      setTimeout(() => {
+        items.forEach((item) => {
+          item.style.transform = "";
+          item.style.transition = "";
+        });
+      }, 300);
+    });
+
+    saveFurnitureItems();
     return false;
   }
 
   function handleDragEnd() {
-    // Optional: add visual feedback
     this.classList.remove("dragging");
+    furnitureItems.querySelectorAll(".furniture-item").forEach((item) => {
+      item.classList.remove("drag-over", "drag-over-top", "drag-over-bottom");
+    });
   }
 
   function saveFurnitureItems() {
