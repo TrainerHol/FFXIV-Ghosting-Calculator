@@ -9,7 +9,7 @@ body {
   display: flex; /* Added */
   flex-direction: column; /* Added */
   font-family: "Final Fantasy Script Collection - Final Fantasy VII", sans-serif;
-  font-size: 18px;
+  font-size: 24px;
   background-color: #000;
   color: #fff;
   line-height: 1.5;

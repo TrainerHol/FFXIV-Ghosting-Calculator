@@ -98,6 +98,7 @@ document.addEventListener("DOMContentLoaded", () => {
     furnitureItems.appendChild(itemElement);
     saveFurnitureItems(); // Add this line to save when a new item is added
     computeGhostingPairs(); // Added
+    updateNotesContent(); // Added
     return itemElement;
   }
 
@@ -105,6 +106,7 @@ document.addEventListener("DOMContentLoaded", () => {
     furnitureItems.innerHTML = "";
     items.forEach((item) => addFurnitureItem(item));
     computeGhostingPairs(); // Added
+    updateNotesContent(); // Added
   }
 
   function addDragAndDropHandlers(element) {
@@ -204,6 +206,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     saveFurnitureItems();
     computeGhostingPairs(); // Added
+    updateNotesContent(); // Added
   }
 
   function handleDragEnd() {
@@ -227,27 +230,61 @@ document.addEventListener("DOMContentLoaded", () => {
   function loadFurnitureItems() {
     const items = JSON.parse(localStorage.getItem("furnitureItems")) || [];
     displayFurnitureItems(items);
+    updateNotesContent(); // Added
   }
 
-  // Add function to compute ghosting pairs
+  // Function to update notes content
+  function updateNotesContent() {
+    const notesContainer = document.getElementById("notesContent");
+    if (!notesContainer) return;
+
+    notesContainer.innerHTML = "";
+
+    if (pairs.length > 0) {
+      // Bullet point for items before the first trigger
+      const firstPair = pairs[0];
+      const firstItem = firstPair.a;
+      const bullet1 = document.createElement("li");
+      bullet1.textContent = `Any items before ${firstItem.trigger}, ${firstItem.name} at (${firstItem.coordinates.x.toFixed(2)}, ${firstItem.coordinates.y.toFixed(2)}, ${firstItem.coordinates.z.toFixed(2)}), will not be affected by ghosting.`;
+      notesContainer.appendChild(bullet1);
+
+      // Bullet points for each item in each pair
+      pairs.forEach((pair) => {
+        const a = pair.a;
+        const b = pair.b;
+
+        // Bullet for Trigger A
+        const bulletA = document.createElement("li");
+        bulletA.innerHTML = `When the player gets to ${a.trigger}, ${a.name} at (${a.coordinates.x.toFixed(2)}, ${a.coordinates.y.toFixed(2)}, ${a.coordinates.z.toFixed(2)}), any items placed after ${b.trigger} including itself will disappear in groups of 5 every tick. <button onclick="console.log('Visualize')">Visualize</button>`;
+        notesContainer.appendChild(bulletA);
+
+        // Bullet for Trigger B
+        const bulletB = document.createElement("li");
+        bulletB.innerHTML = `When the player gets to ${b.trigger}, ${b.name} at (${b.coordinates.x.toFixed(2)}, ${b.coordinates.y.toFixed(2)}, ${b.coordinates.z.toFixed(2)}), any items placed after ${a.trigger} including itself will disappear in groups of 5 every tick. <button onclick="console.log('Visualize')">Visualize</button>`;
+        notesContainer.appendChild(bulletB);
+      });
+    }
+  }
+
   function computeGhostingPairs() {
     pairs = [];
     const items = Array.from(furnitureItems.children)
       .map((item) => {
         const nameText = item.querySelector(".furniture-item-content .editable").textContent;
-        // Updated regex to handle negative numbers
         const coordsMatch = nameText.match(/\((-?\d+\.\d+),\s*(-?\d+\.\d+),\s*(-?\d+\.\d+)\)/);
         if (coordsMatch) {
           return {
             element: item,
-            x: parseFloat(coordsMatch[1]),
-            y: parseFloat(coordsMatch[2]),
-            z: parseFloat(coordsMatch[3]),
+            coordinates: {
+              x: parseFloat(coordsMatch[1]),
+              y: parseFloat(coordsMatch[2]),
+              z: parseFloat(coordsMatch[3]),
+            },
           };
         }
         return null;
       })
-      .filter((item) => item !== null); // Removed the magnitude filter
+      .filter((item) => item !== null);
 
     let triggerNumber = 1;
     // Reset existing info labels in each furniture item
@@ -257,21 +294,36 @@ document.addEventListener("DOMContentLoaded", () => {
 
     for (let i = 0; i < items.length; i++) {
       for (let j = i + 1; j < items.length; j++) {
-        const distance = Math.sqrt(Math.pow(items[i].x - items[j].x, 2) + Math.pow(items[i].y - items[j].y, 2) + Math.pow(items[i].z - items[j].z, 2));
-        // Debugging log to verify distance calculations
-        console.log(`Distance between "${items[i].element.querySelector(".editable").textContent}" and "${items[j].element.querySelector(".editable").textContent}": ${distance.toFixed(2)}`);
+        const distance = Math.sqrt(Math.pow(items[i].coordinates.x - items[j].coordinates.x, 2) + Math.pow(items[i].coordinates.y - items[j].coordinates.y, 2) + Math.pow(items[i].coordinates.z - items[j].coordinates.z, 2));
         if (distance >= 99.9) {
-          pairs.push({ a: items[i], b: items[j], trigger: triggerNumber });
-          // Assign Trigger labels within each furniture item
-          items[i].element.querySelector(".info-label").textContent = `Trigger #${triggerNumber} A`;
-          items[j].element.querySelector(".info-label").textContent = `Trigger #${triggerNumber} B`;
+          const triggerA = `Trigger #${triggerNumber} A`;
+          const triggerB = `Trigger #${triggerNumber} B`;
+          const nameA = items[i].element.querySelector(".furniture-item-content .editable").textContent.trim();
+          const nameB = items[j].element.querySelector(".furniture-item-content .editable").textContent.trim();
+
+          pairs.push({
+            a: {
+              ...items[i],
+              trigger: triggerA,
+              name: nameA,
+            },
+            b: {
+              ...items[j],
+              trigger: triggerB,
+              name: nameB,
+            },
+          });
+
+          // Assign Trigger labels
+          items[i].element.querySelector(".info-label").textContent = triggerA;
+          items[j].element.querySelector(".info-label").textContent = triggerB;
+
           triggerNumber++;
         }
       }
     }
 
-    // Optional: Log the pairs for verification
-    console.log("Identified Ghosting Pairs:", pairs);
+    updateNotesContent(); // Ensure notes are updated after computing pairs
   }
 
   loadFurnitureItems();
