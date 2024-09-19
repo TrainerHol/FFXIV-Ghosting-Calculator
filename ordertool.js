@@ -76,7 +76,10 @@ document.addEventListener("DOMContentLoaded", () => {
     saveFurnitureItems();
   });
 
-  function addFurnitureItem(item = { name: "", info: "" }) {
+  function addFurnitureItem(item = { name: "", info: "", coordinates: { x: 0, y: 0, z: 0 } }) {
+    // Ensure coordinates exist
+    item.coordinates = item.coordinates || { x: 0, y: 0, z: 0 };
+
     const itemElement = document.createElement("div");
     itemElement.className = "furniture-item";
     itemElement.draggable = true;
@@ -90,13 +93,18 @@ document.addEventListener("DOMContentLoaded", () => {
     `;
     addDragAndDropHandlers(itemElement);
 
+    // Set dataset attributes for coordinates
+    itemElement.dataset.x = item.coordinates.x;
+    itemElement.dataset.y = item.coordinates.y;
+    itemElement.dataset.z = item.coordinates.z;
+
     // Save changes on blur
     itemElement.querySelectorAll(".editable").forEach((element) => {
       element.addEventListener("blur", saveFurnitureItems);
     });
 
     furnitureItems.appendChild(itemElement);
-    saveFurnitureItems(); // Add this line to save when a new item is added
+    saveFurnitureItems(); // Save when a new item is added
     computeGhostingPairs(); // Added
     updateNotesContent(); // Added
     return itemElement;
@@ -220,16 +228,24 @@ document.addEventListener("DOMContentLoaded", () => {
     const items = [];
     furnitureItems.querySelectorAll(".furniture-item").forEach((item) => {
       const nameElement = item.querySelector(".furniture-item-content .editable");
-      const name = nameElement.innerHTML.trim(); // Use innerHTML instead of textContent
+      const name = nameElement.innerHTML.trim();
       const info = item.querySelector(".info-label").textContent.trim();
-      items.push({ name, info });
+      const x = parseFloat(item.dataset.x) || 0;
+      const y = parseFloat(item.dataset.y) || 0;
+      const z = parseFloat(item.dataset.z) || 0;
+      items.push({ name, info, coordinates: { x, y, z } });
     });
     localStorage.setItem("furnitureItems", JSON.stringify(items));
   }
 
   function loadFurnitureItems() {
     const items = JSON.parse(localStorage.getItem("furnitureItems")) || [];
-    displayFurnitureItems(items);
+    // Ensure all items have coordinates
+    const updatedItems = items.map((item) => ({
+      ...item,
+      coordinates: item.coordinates || { x: 0, y: 0, z: 0 },
+    }));
+    displayFurnitureItems(updatedItems);
     updateNotesContent(); // Added
   }
 
@@ -310,7 +326,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function scrollToTrigger(trigger) {
     const item = Array.from(furnitureItems.children).find((item) => item.querySelector(".info-label").textContent === trigger);
     if (item) {
-      item.scrollIntoView({ behavior: "smooth", block: "center" });
+      furnitureItems.scrollTop = item.offsetTop - furnitureItems.clientHeight / 2; // Updated scroll
       item.classList.add("highlighted");
       setTimeout(() => {
         item.classList.remove("highlighted");
@@ -429,15 +445,51 @@ function initializeThreeJS() {
 
   const controls = new THREE.OrbitControls(camera, renderer.domElement);
 
-  // Add XYZ axes
+  // Invert the Z-axis
+  scene.scale.z = -1;
+
+  // Add XYZ axes with labels
   const axesHelper = new THREE.AxesHelper(50);
   scene.add(axesHelper);
 
-  // Add a mesh grid sphere
+  const loader = new THREE.FontLoader();
+  loader.load("https://threejs.org/examples/fonts/helvetiker_regular.typeface.json", function (font) {
+    const createLabel = (text, position) => {
+      const textGeometry = new THREE.TextGeometry(text, {
+        font: font,
+        size: 2,
+        height: 0.5,
+      });
+      const textMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+      const textMesh = new THREE.Mesh(textGeometry, textMaterial);
+      textMesh.position.copy(position);
+      scene.add(textMesh);
+    };
+
+    createLabel("X", new THREE.Vector3(55, 0, 0));
+    createLabel("Y", new THREE.Vector3(0, 55, 0));
+    createLabel("Z", new THREE.Vector3(0, 0, 55));
+  });
+
+  // Add main mesh grid sphere
   const sphereGeometry = new THREE.SphereGeometry(50, 32, 32);
   const sphereMaterial = new THREE.MeshBasicMaterial({ color: 0x002e07, wireframe: true });
   const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
   scene.add(sphere);
+
+  // Add blue spheres for furniture coordinates
+  const furnitureItemsData = JSON.parse(localStorage.getItem("furnitureItems")) || [];
+  furnitureItemsData.forEach((item) => {
+    if (!item.coordinates) return; // Skip items without coordinates
+    const { x, y, z } = item.coordinates;
+    // Normalize to fit within 50 radius sphere
+    const normalized = normalizeVector(new THREE.Vector3(x, y, z), 50);
+    const blueSphereGeometry = new THREE.SphereGeometry(1, 16, 16);
+    const blueSphereMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff });
+    const blueSphere = new THREE.Mesh(blueSphereGeometry, blueSphereMaterial);
+    blueSphere.position.copy(normalized);
+    scene.add(blueSphere);
+  });
 
   // Handle window resize
   window.addEventListener("resize", () => {
@@ -456,4 +508,11 @@ function initializeThreeJS() {
   }
 
   animate();
+}
+
+// Helper function to normalize vectors
+function normalizeVector(vector, maxRadius) {
+  const length = vector.length();
+  if (length === 0) return vector;
+  return vector.multiplyScalar(maxRadius / length);
 }
