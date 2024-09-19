@@ -245,7 +245,15 @@ document.addEventListener("DOMContentLoaded", () => {
       const firstPair = pairs[0];
       const firstItem = firstPair.a;
       const bullet1 = document.createElement("li");
-      bullet1.textContent = `Any items before ${firstItem.trigger}, ${firstItem.name} at (${firstItem.coordinates.x.toFixed(2)}, ${firstItem.coordinates.y.toFixed(2)}, ${firstItem.coordinates.z.toFixed(2)}), will not be affected by ghosting.`;
+      bullet1.textContent = `Any items before `;
+
+      const triggerLink = document.createElement("button");
+      triggerLink.className = "trigger-link";
+      triggerLink.textContent = firstItem.trigger;
+      triggerLink.addEventListener("click", () => scrollToTrigger(firstItem));
+
+      bullet1.appendChild(triggerLink);
+      bullet1.innerHTML += `, ${firstItem.name} at (${firstItem.coordinates.x.toFixed(2)}, ${firstItem.coordinates.y.toFixed(2)}, ${firstItem.coordinates.z.toFixed(2)}), will not be affected by ghosting.`;
       notesContainer.appendChild(bullet1);
 
       // Bullet points for each item in each pair
@@ -255,15 +263,87 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Bullet for Trigger A
         const bulletA = document.createElement("li");
-        bulletA.innerHTML = `When the player gets to ${a.trigger}, ${a.name} at (${a.coordinates.x.toFixed(2)}, ${a.coordinates.y.toFixed(2)}, ${a.coordinates.z.toFixed(2)}), any items placed after ${b.trigger} including itself will disappear in groups of 5 every tick. <button onclick="console.log('Visualize')">Visualize</button>`;
+
+        const triggerALink = document.createElement("button");
+        triggerALink.className = "trigger-link";
+        triggerALink.textContent = a.trigger;
+        triggerALink.addEventListener("click", () => scrollToTrigger(a));
+
+        bulletA.appendChild(document.createTextNode(`When the player gets to `));
+        bulletA.appendChild(triggerALink);
+        bulletA.innerHTML += `, ${a.name} at (${a.coordinates.x.toFixed(2)}, ${a.coordinates.y.toFixed(2)}, ${a.coordinates.z.toFixed(2)}), any items placed after `;
+
+        const triggerBLink = document.createElement("button");
+        triggerBLink.className = "trigger-link";
+        triggerBLink.textContent = b.trigger;
+        triggerBLink.addEventListener("click", () => scrollToTrigger(b));
+
+        bulletA.appendChild(triggerBLink);
+        bulletA.innerHTML += ` including itself will disappear in groups of 5 every tick. <button class="visualize-btn" onclick="visualizeDisappearance('${pair.a.trigger}', '${pair.b.trigger}')">Visualize</button>`;
         notesContainer.appendChild(bulletA);
 
         // Bullet for Trigger B
         const bulletB = document.createElement("li");
-        bulletB.innerHTML = `When the player gets to ${b.trigger}, ${b.name} at (${b.coordinates.x.toFixed(2)}, ${b.coordinates.y.toFixed(2)}, ${b.coordinates.z.toFixed(2)}), any items placed after ${a.trigger} including itself will disappear in groups of 5 every tick. <button onclick="console.log('Visualize')">Visualize</button>`;
+
+        const triggerBLink2 = document.createElement("button");
+        triggerBLink2.className = "trigger-link";
+        triggerBLink2.textContent = b.trigger;
+        triggerBLink2.addEventListener("click", () => scrollToTrigger(b));
+
+        bulletB.appendChild(document.createTextNode(`When the player gets to `));
+        bulletB.appendChild(triggerBLink2);
+        bulletB.innerHTML += `, ${b.name} at (${b.coordinates.x.toFixed(2)}, ${b.coordinates.y.toFixed(2)}, ${b.coordinates.z.toFixed(2)}), any items placed after `;
+
+        const triggerALink2 = document.createElement("button");
+        triggerALink2.className = "trigger-link";
+        triggerALink2.textContent = a.trigger;
+        triggerALink2.addEventListener("click", () => scrollToTrigger(a));
+
+        bulletB.appendChild(triggerALink2);
+        bulletB.innerHTML += ` including itself will disappear in groups of 5 every tick. <button class="visualize-btn" onclick="visualizeDisappearance('${pair.b.trigger}', '${pair.a.trigger}')">Visualize</button>`;
         notesContainer.appendChild(bulletB);
       });
     }
+  }
+
+  // Scroll to trigger and highlight
+  function scrollToTrigger(trigger) {
+    const item = Array.from(furnitureItems.children).find((item) => item.querySelector(".info-label").textContent === trigger);
+    if (item) {
+      item.scrollIntoView({ behavior: "smooth", block: "center" });
+      item.classList.add("highlighted");
+      setTimeout(() => {
+        item.classList.remove("highlighted");
+      }, 1000);
+    }
+  }
+
+  // Visualize disappearance animation
+  function visualizeDisappearance(startTrigger, pairTrigger) {
+    const startItem = Array.from(furnitureItems.children).find((item) => item.querySelector(".info-label").textContent === pairTrigger);
+    if (!startItem) return;
+
+    const allItems = Array.from(furnitureItems.children);
+    const startIndex = allItems.indexOf(startItem);
+
+    let index = startIndex;
+    const total = allItems.length;
+
+    function highlightGroup() {
+      if (index >= total) return;
+      for (let i = index; i < index + 5 && i < total; i++) {
+        allItems[i].classList.add("highlighted");
+      }
+      setTimeout(() => {
+        for (let i = index; i < index + 5 && i < total; i++) {
+          allItems[i].classList.remove("highlighted");
+        }
+        index += 5;
+        highlightGroup();
+      }, 1000);
+    }
+
+    highlightGroup();
   }
 
   function computeGhostingPairs() {
@@ -330,6 +410,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Initialize Three.js
   initializeThreeJS();
+
+  // Expose visualizeDisappearance and scrollToTrigger to the global scope
+  window.visualizeDisappearance = visualizeDisappearance;
+  window.scrollToTrigger = scrollToTrigger;
 });
 
 // Function to initialize Three.js in the threejsCanvas
