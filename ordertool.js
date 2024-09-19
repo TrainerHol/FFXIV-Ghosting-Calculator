@@ -109,6 +109,15 @@ document.addEventListener("DOMContentLoaded", () => {
       element.addEventListener("blur", saveFurnitureItems);
     });
 
+    itemElement.addEventListener("mouseenter", () => {
+      const index = Array.from(furnitureItems.children).indexOf(itemElement);
+      highlightSphere(index, true);
+    });
+    itemElement.addEventListener("mouseleave", () => {
+      const index = Array.from(furnitureItems.children).indexOf(itemElement);
+      highlightSphere(index, false);
+    });
+
     furnitureItems.appendChild(itemElement);
     saveFurnitureItems(); // Save when a new item is added
     computeGhostingPairs();
@@ -562,6 +571,17 @@ function initializeThreeJS() {
     controls.update();
     renderer.render(scene, camera);
   }
+
+  // Add this function inside initializeThreeJS
+  function highlightSphere(index, highlight) {
+    if (index >= 0 && index < blueSpheresArray.length) {
+      const sphere = blueSpheresArray[index];
+      sphere.material.color.setHex(highlight ? 0xff0000 : 0x0000ff);
+    }
+  }
+
+  // Expose the highlightSphere function to the global scope
+  window.highlightSphere = highlightSphere;
 
   animate();
 }
