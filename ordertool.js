@@ -111,8 +111,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     furnitureItems.appendChild(itemElement);
     saveFurnitureItems(); // Save when a new item is added
-    computeGhostingPairs(); // Added
-    updateNotesContent(); // Added
+    computeGhostingPairs();
+    updateNotesContent();
 
     // Reinitialize Three.js scene to update blue spheres
     initializeThreeJS();
@@ -122,8 +122,8 @@ document.addEventListener("DOMContentLoaded", () => {
   function displayFurnitureItems(items) {
     furnitureItems.innerHTML = "";
     items.forEach((item) => addFurnitureItem(item));
-    computeGhostingPairs(); // Added
-    updateNotesContent(); // Added
+    computeGhostingPairs();
+    updateNotesContent();
   }
 
   function addDragAndDropHandlers(element) {
@@ -222,8 +222,8 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     saveFurnitureItems();
-    computeGhostingPairs(); // Added
-    updateNotesContent(); // Added
+    computeGhostingPairs();
+    updateNotesContent();
 
     // Reinitialize Three.js scene to update blue spheres
     initializeThreeJS();
@@ -255,13 +255,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function loadFurnitureItems() {
     const items = JSON.parse(localStorage.getItem("furnitureItems")) || [];
-    // Ensure all items have coordinates
+    // All items have coordinates
     const updatedItems = items.map((item) => ({
       ...item,
       coordinates: item.coordinates || { x: 0, y: 0, z: 0 },
     }));
     displayFurnitureItems(updatedItems);
-    updateNotesContent(); // Added
+    updateNotesContent();
   }
 
   // Function to update notes content
@@ -281,7 +281,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const triggerLink = document.createElement("button");
       triggerLink.className = "trigger-link";
       triggerLink.textContent = firstItem.trigger;
-      triggerLink.addEventListener("click", () => scrollToTrigger(firstItem));
+      triggerLink.addEventListener("click", () => scrollToTrigger(firstItem.trigger));
 
       bullet1.appendChild(triggerLink);
       bullet1.innerHTML += `, ${firstItem.name} at (${firstItem.coordinates.x.toFixed(2)}, ${firstItem.coordinates.y.toFixed(2)}, ${firstItem.coordinates.z.toFixed(2)}), will not be affected by ghosting.`;
@@ -298,7 +298,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const triggerALink = document.createElement("button");
         triggerALink.className = "trigger-link";
         triggerALink.textContent = a.trigger;
-        triggerALink.addEventListener("click", () => scrollToTrigger(a));
+        triggerALink.addEventListener("click", () => scrollToTrigger(a.trigger));
 
         bulletA.appendChild(document.createTextNode(`When the player gets to `));
         bulletA.appendChild(triggerALink);
@@ -307,7 +307,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const triggerBLink = document.createElement("button");
         triggerBLink.className = "trigger-link";
         triggerBLink.textContent = b.trigger;
-        triggerBLink.addEventListener("click", () => scrollToTrigger(b));
+        triggerBLink.addEventListener("click", () => scrollToTrigger(b.trigger));
 
         bulletA.appendChild(triggerBLink);
         bulletA.innerHTML += ` including itself will disappear in groups of 5 every tick. <button class="visualize-btn" onclick="visualizeDisappearance('${pair.a.trigger}', '${pair.b.trigger}')">Visualize</button>`;
@@ -319,7 +319,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const triggerBLink2 = document.createElement("button");
         triggerBLink2.className = "trigger-link";
         triggerBLink2.textContent = b.trigger;
-        triggerBLink2.addEventListener("click", () => scrollToTrigger(b));
+        triggerBLink2.addEventListener("click", () => scrollToTrigger(b.trigger));
 
         bulletB.appendChild(document.createTextNode(`When the player gets to `));
         bulletB.appendChild(triggerBLink2);
@@ -328,20 +328,35 @@ document.addEventListener("DOMContentLoaded", () => {
         const triggerALink2 = document.createElement("button");
         triggerALink2.className = "trigger-link";
         triggerALink2.textContent = a.trigger;
-        triggerALink2.addEventListener("click", () => scrollToTrigger(a));
+        triggerALink2.addEventListener("click", () => scrollToTrigger(a.trigger));
 
         bulletB.appendChild(triggerALink2);
         bulletB.innerHTML += ` including itself will disappear in groups of 5 every tick. <button class="visualize-btn" onclick="visualizeDisappearance('${pair.b.trigger}', '${pair.a.trigger}')">Visualize</button>`;
         notesContainer.appendChild(bulletB);
       });
     }
+
+    // Add event listeners after content is added to the DOM
+    addTriggerLinkListeners();
   }
 
-  // Scroll to trigger and highlight
-  function scrollToTrigger(trigger) {
-    const item = Array.from(furnitureItems.children).find((item) => item.querySelector(".info-label").textContent === trigger);
+  // New function to add event listeners to trigger links
+  function addTriggerLinkListeners() {
+    const triggerLinks = document.querySelectorAll(".trigger-link");
+    triggerLinks.forEach((link) => {
+      link.addEventListener("click", function () {
+        scrollToTrigger(this.textContent);
+      });
+    });
+  }
+
+  // scrollToTrigger function
+  function scrollToTrigger(triggerText) {
+    const item = Array.from(furnitureItems.children).find((item) => item.querySelector(".info-label").textContent === triggerText);
     if (item) {
-      furnitureItems.scrollTop = item.offsetTop - furnitureItems.clientHeight / 2; // Updated scroll
+      const container = document.querySelector(".furniture-list");
+      item.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
+
       item.classList.add("highlighted");
       setTimeout(() => {
         item.classList.remove("highlighted");
