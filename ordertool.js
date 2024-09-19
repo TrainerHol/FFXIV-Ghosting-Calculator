@@ -1,6 +1,9 @@
 // Define blueSpheresMap at the global scope
 const blueSpheresMap = new Map();
 
+// Define blueSpheresArray at the global scope
+const blueSpheresArray = [];
+
 document.addEventListener("DOMContentLoaded", () => {
   const uploadBtn = document.getElementById("uploadBtn");
   const addItemBtn = document.getElementById("addItemBtn");
@@ -110,6 +113,9 @@ document.addEventListener("DOMContentLoaded", () => {
     saveFurnitureItems(); // Save when a new item is added
     computeGhostingPairs(); // Added
     updateNotesContent(); // Added
+
+    // Reinitialize Three.js scene to update blue spheres
+    initializeThreeJS();
     return itemElement;
   }
 
@@ -218,6 +224,9 @@ document.addEventListener("DOMContentLoaded", () => {
     saveFurnitureItems();
     computeGhostingPairs(); // Added
     updateNotesContent(); // Added
+
+    // Reinitialize Three.js scene to update blue spheres
+    initializeThreeJS();
   }
 
   function handleDragEnd() {
@@ -239,6 +248,9 @@ document.addEventListener("DOMContentLoaded", () => {
       items.push({ name, info, coordinates: { x, y, z } });
     });
     localStorage.setItem("furnitureItems", JSON.stringify(items));
+
+    // Reinitialize Three.js scene to update blue spheres
+    initializeThreeJS();
   }
 
   function loadFurnitureItems() {
@@ -354,18 +366,18 @@ document.addEventListener("DOMContentLoaded", () => {
         allItems[i].classList.add("highlighted");
 
         // Highlight the corresponding blue sphere
-        const infoLabel = allItems[i].querySelector(".info-label").textContent.trim();
-        const sphere = blueSpheresMap.get(infoLabel);
-        if (sphere) {
-          sphere.material.color.set(0xffff00); // Change to yellow
-          setTimeout(() => {
-            sphere.material.color.set(0x0000ff); // Revert to blue
-          }, 1000);
+        if (i < blueSpheresArray.length) {
+          blueSpheresArray[i].material.color.set(0xffff00); // Change to yellow
         }
       }
       setTimeout(() => {
         for (let i = index; i < index + 5 && i < total; i++) {
           allItems[i].classList.remove("highlighted");
+
+          // Revert blue sphere color
+          if (i < blueSpheresArray.length) {
+            blueSpheresArray[i].material.color.set(0x0000ff); // Revert to blue
+          }
         }
         index += 5;
         highlightGroup();
@@ -487,24 +499,37 @@ function initializeThreeJS() {
   const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
   scene.add(sphere);
 
+  // Clear existing blue spheres
+  blueSpheresArray.forEach((sphere) => scene.remove(sphere));
+  blueSpheresArray.length = 0;
+  blueSpheresMap.clear();
+
   // Add blue spheres for furniture coordinates
-  const furnitureItemsData = JSON.parse(localStorage.getItem("furnitureItems")) || [];
-  furnitureItemsData.forEach((item, index) => {
-    if (!item.coordinates) return; // Skip items without coordinates
-    const { x, y, z } = item.coordinates;
+  const furnitureItems = document.querySelectorAll(".furniture-item");
+  furnitureItems.forEach((item, index) => {
+    const nameElement = item.querySelector(".furniture-item-content .editable");
+    const infoElement = item.querySelector(".info-label");
+    const name = nameElement.textContent.trim();
+    const info = infoElement.textContent.trim();
+    const coordsMatch = name.match(/\((-?\d+\.\d+),\s*(-?\d+\.\d+),\s*(-?\d+\.\d+)\)/);
 
-    // Ensure the coordinates are within the 50-radius sphere
-    const vector = new THREE.Vector3(x, y, z);
-    vector.clampLength(0, 50); // Scale down if necessary
+    if (coordsMatch) {
+      const x = parseFloat(coordsMatch[1]);
+      const y = parseFloat(coordsMatch[2]);
+      const z = parseFloat(coordsMatch[3]);
 
-    const blueSphereGeometry = new THREE.SphereGeometry(1, 16, 16);
-    const blueSphereMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff });
-    const blueSphere = new THREE.Mesh(blueSphereGeometry, blueSphereMaterial);
-    blueSphere.position.copy(vector);
-    scene.add(blueSphere);
+      const vector = new THREE.Vector3(x, y, z);
+      vector.clampLength(0, 50); // Scale down if necessary
 
-    // Map the furniture item's info label to its corresponding blue sphere
-    blueSpheresMap.set(item.info, blueSphere);
+      const blueSphereGeometry = new THREE.SphereGeometry(1, 16, 16);
+      const blueSphereMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff });
+      const blueSphere = new THREE.Mesh(blueSphereGeometry, blueSphereMaterial);
+      blueSphere.position.copy(vector);
+      scene.add(blueSphere);
+
+      blueSpheresArray.push(blueSphere);
+      blueSpheresMap.set(info, blueSphere);
+    }
   });
 
   // Handle window resize
