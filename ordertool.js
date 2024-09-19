@@ -275,4 +275,49 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   loadFurnitureItems();
+
+  // Initialize Three.js
+  initializeThreeJS();
 });
+
+// Function to initialize Three.js in the threejsCanvas
+function initializeThreeJS() {
+  const canvas = document.getElementById("threejsCanvas");
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+
+  const scene = new THREE.Scene();
+
+  const camera = new THREE.PerspectiveCamera(75, canvas.clientWidth / canvas.clientHeight, 0.1, 1000);
+  camera.position.set(0, 0, 100);
+
+  const controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+  // Add XYZ axes
+  const axesHelper = new THREE.AxesHelper(50);
+  scene.add(axesHelper);
+
+  // Add a mesh grid sphere
+  const sphereGeometry = new THREE.SphereGeometry(50, 32, 32);
+  const sphereMaterial = new THREE.MeshBasicMaterial({ color: 0x002e07, wireframe: true });
+  const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+  scene.add(sphere);
+
+  // Handle window resize
+  window.addEventListener("resize", () => {
+    const width = canvas.clientWidth;
+    const height = canvas.clientHeight;
+    renderer.setSize(width, height);
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+  });
+
+  // Animation loop
+  function animate() {
+    requestAnimationFrame(animate);
+    controls.update();
+    renderer.render(scene, camera);
+  }
+
+  animate();
+}

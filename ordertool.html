@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Ghosting Order Tool</title>
     <link rel="stylesheet" href="order.css" />
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+    <script src="ordertool.js"></script>
   </head>
   <body>
     <div class="banner">
@@ -20,7 +23,16 @@
           <!-- Furniture items will be dynamically added here -->
         </div>
       </div>
+      <div class="right-side">
+        <div class="notes-panel">
+          <h2>Notes</h2>
+          <!-- Notes content will go here -->
+        </div>
+        <div class="threejs-panel">
+          <canvas id="threejsCanvas"></canvas>
+          <!-- Three.js visualization will be initialized here -->
+        </div>
+      </div>
     </div>
-    <script src="ordertool.js"></script>
   </body>
 </html>
