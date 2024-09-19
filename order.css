@@ -6,6 +6,8 @@
 }
 
 body {
+  display: flex; /* Added */
+  flex-direction: column; /* Added */
   font-family: "Final Fantasy Script Collection - Final Fantasy VII", sans-serif;
   font-size: 18px;
   background-color: #000;
@@ -43,8 +45,10 @@ body {
 .container {
   display: flex;
   gap: 20px;
-  height: 100%;
+  flex: 1; /* Changed from height: 100% to flex: 1 */
   width: 100%;
+  overflow: hidden; /* Prevent container from overflowing */
+  /* Removed height: 100%; */
 }
 
 .right-side {
@@ -52,10 +56,10 @@ body {
   display: flex;
   flex-direction: column;
   width: 60%;
-  height: 100%;
   gap: 20px;
-  height: 100%;
-  flex: 1; /* Allow right-side to grow and fill available space */
+  flex: 1; /* Ensure it grows to fill available space */
+  min-height: 0; /* Allow it to shrink properly */
+  padding-bottom: 3%;
 }
 
 .notes-panel {
@@ -65,7 +69,7 @@ body {
   box-shadow: inset 0 0 2px 2px rgba(0, 0, 0, 0.3);
   padding: 20px;
   overflow-y: auto;
-  height: 25%;
+  flex: 0 0 25%;
 }
 
 .threejs-panel {
@@ -75,7 +79,8 @@ body {
   padding: 15px;
   position: relative;
   overflow: hidden;
-  height: 50%;
+  flex: 1 1 50%;
+  min-height: 0; /* Allow it to shrink properly */
 }
 
 .threejs-panel canvas {
