@@ -224,15 +224,16 @@ document.addEventListener("DOMContentLoaded", () => {
   function saveFurnitureItems() {
     const items = [];
     furnitureItems.querySelectorAll(".furniture-item").forEach((item) => {
-      const name = item.querySelector(".furniture-item-content .editable").textContent.trim();
+      const nameElement = item.querySelector(".furniture-item-content .editable");
+      const name = nameElement.innerHTML.trim(); // Use innerHTML instead of textContent
       const info = item.querySelector(".info-label").textContent.trim();
-      items.push({ name, info }); // Remove the condition to always save items, even if empty
+      items.push({ name, info });
     });
-    localStorage.setItem("furnitureItems", JSON.stringify(items)); // Change to localStorage
+    localStorage.setItem("furnitureItems", JSON.stringify(items));
   }
 
   function loadFurnitureItems() {
-    const items = JSON.parse(localStorage.getItem("furnitureItems")) || []; // Change to localStorage
+    const items = JSON.parse(localStorage.getItem("furnitureItems")) || [];
     displayFurnitureItems(items);
     updateInfoLabels();
   }
