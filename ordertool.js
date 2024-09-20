@@ -335,7 +335,7 @@ document.addEventListener("DOMContentLoaded", () => {
       triggerLink.addEventListener("click", () => scrollToTrigger(firstItem.trigger));
 
       bullet1.appendChild(triggerLink);
-      bullet1.innerHTML += `, ${firstItem.name} at (${firstItem.coordinates.x.toFixed(2)}, ${firstItem.coordinates.y.toFixed(2)}, ${firstItem.coordinates.z.toFixed(2)}), will not be affected by ghosting.`;
+      bullet1.innerHTML += `, ${firstItem.name} , will not be affected by ghosting.`;
       notesContainer.appendChild(bullet1);
 
       // Bullet points for each item in each pair
@@ -367,7 +367,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     bullet.appendChild(document.createTextNode(`When the player gets to `));
     bullet.appendChild(triggerLink);
-    bullet.innerHTML += `, ${trigger.name} at (${trigger.coordinates.x.toFixed(2)}, ${trigger.coordinates.y.toFixed(2)}, ${trigger.coordinates.z.toFixed(2)}), any items placed after `;
+    bullet.innerHTML += `, ${trigger.name} , any items placed after `;
 
     const otherTriggerLink = createTriggerLink(otherTrigger.trigger);
 
