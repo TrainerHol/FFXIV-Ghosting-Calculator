@@ -114,6 +114,7 @@ document.addEventListener("DOMContentLoaded", () => {
       element.addEventListener("blur", () => {
         saveFurnitureItems();
         updateLabelColors();
+        computeGhostingPairs(); // Add this line to update pairs and notes
       });
     });
 
@@ -343,45 +344,11 @@ document.addEventListener("DOMContentLoaded", () => {
         const b = pair.b;
 
         // Bullet for Trigger A
-        const bulletA = document.createElement("li");
-
-        const triggerALink = document.createElement("button");
-        triggerALink.className = "trigger-link";
-        triggerALink.textContent = a.trigger;
-        triggerALink.addEventListener("click", () => scrollToTrigger(a.trigger));
-
-        bulletA.appendChild(document.createTextNode(`When the player gets to `));
-        bulletA.appendChild(triggerALink);
-        bulletA.innerHTML += `, ${a.name} at (${a.coordinates.x.toFixed(2)}, ${a.coordinates.y.toFixed(2)}, ${a.coordinates.z.toFixed(2)}), any items placed after `;
-
-        const triggerBLink = document.createElement("button");
-        triggerBLink.className = "trigger-link";
-        triggerBLink.textContent = b.trigger;
-        triggerBLink.addEventListener("click", () => scrollToTrigger(b.trigger));
-
-        bulletA.appendChild(triggerBLink);
-        bulletA.innerHTML += ` including itself will disappear in groups of 5 every tick. <button class="visualize-btn" onclick="visualizeDisappearance('${pair.a.trigger}', '${pair.b.trigger}')">Visualize</button>`;
+        const bulletA = createTriggerBullet(a, b);
         notesContainer.appendChild(bulletA);
 
         // Bullet for Trigger B
-        const bulletB = document.createElement("li");
-
-        const triggerBLink2 = document.createElement("button");
-        triggerBLink2.className = "trigger-link";
-        triggerBLink2.textContent = b.trigger;
-        triggerBLink2.addEventListener("click", () => scrollToTrigger(b.trigger));
-
-        bulletB.appendChild(document.createTextNode(`When the player gets to `));
-        bulletB.appendChild(triggerBLink2);
-        bulletB.innerHTML += `, ${b.name} at (${b.coordinates.x.toFixed(2)}, ${b.coordinates.y.toFixed(2)}, ${b.coordinates.z.toFixed(2)}), any items placed after `;
-
-        const triggerALink2 = document.createElement("button");
-        triggerALink2.className = "trigger-link";
-        triggerALink2.textContent = a.trigger;
-        triggerALink2.addEventListener("click", () => scrollToTrigger(a.trigger));
-
-        bulletB.appendChild(triggerALink2);
-        bulletB.innerHTML += ` including itself will disappear in groups of 5 every tick. <button class="visualize-btn" onclick="visualizeDisappearance('${pair.b.trigger}', '${pair.a.trigger}')">Visualize</button>`;
+        const bulletB = createTriggerBullet(b, a);
         notesContainer.appendChild(bulletB);
       });
     }
@@ -391,6 +358,31 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Update colors in notes content
     updateLabelColors();
+  }
+
+  function createTriggerBullet(trigger, otherTrigger) {
+    const bullet = document.createElement("li");
+
+    const triggerLink = createTriggerLink(trigger.trigger);
+
+    bullet.appendChild(document.createTextNode(`When the player gets to `));
+    bullet.appendChild(triggerLink);
+    bullet.innerHTML += `, ${trigger.name} at (${trigger.coordinates.x.toFixed(2)}, ${trigger.coordinates.y.toFixed(2)}, ${trigger.coordinates.z.toFixed(2)}), any items placed after `;
+
+    const otherTriggerLink = createTriggerLink(otherTrigger.trigger);
+
+    bullet.appendChild(otherTriggerLink);
+    bullet.innerHTML += ` including itself will disappear in groups of 5 every tick. <button class="visualize-btn" onclick="visualizeDisappearance('${trigger.trigger}', '${otherTrigger.trigger}')">Visualize</button>`;
+
+    return bullet;
+  }
+
+  function createTriggerLink(triggerText) {
+    const triggerLink = document.createElement("button");
+    triggerLink.className = "trigger-link";
+    triggerLink.textContent = triggerText;
+    triggerLink.addEventListener("click", () => scrollToTrigger(triggerText));
+    return triggerLink;
   }
 
   // New function to add event listeners to trigger links
@@ -557,6 +549,42 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       }
     }
+
+    // Add user-defined trigger logic
+    const userTriggers = new Map();
+    items.forEach((item) => {
+      if (/trigger/i.test(item.customInfo)) {
+        const match = item.customInfo.match(/(.+?)\s*#(\d+)\s*([AB])/i);
+        if (match) {
+          const [, prefix, number, suffix] = match;
+          const key = `${prefix.trim()} #${number}`;
+          if (!userTriggers.has(key)) {
+            userTriggers.set(key, { A: null, B: null });
+          }
+          if (!userTriggers.get(key)[suffix]) {
+            userTriggers.get(key)[suffix] = item;
+          }
+        }
+      }
+    });
+
+    // Add user-defined trigger pairs
+    userTriggers.forEach((pair, key) => {
+      if (pair.A && pair.B) {
+        pairs.push({
+          a: {
+            ...pair.A,
+            trigger: `${key} A`,
+            name: pair.A.element.querySelector(".furniture-item-content .editable").textContent.trim(),
+          },
+          b: {
+            ...pair.B,
+            trigger: `${key} B`,
+            name: pair.B.element.querySelector(".furniture-item-content .editable").textContent.trim(),
+          },
+        });
+      }
+    });
 
     updateNotesContent(); // Ensure notes are updated after computing pairs
   }
