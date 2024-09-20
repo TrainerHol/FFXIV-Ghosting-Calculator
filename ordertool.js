@@ -106,9 +106,12 @@ document.addEventListener("DOMContentLoaded", () => {
     itemElement.dataset.y = item.coordinates.y;
     itemElement.dataset.z = item.coordinates.z;
 
-    // Save changes on blur
+    // Save changes and update colors on blur
     itemElement.querySelectorAll(".editable").forEach((element) => {
-      element.addEventListener("blur", saveFurnitureItems);
+      element.addEventListener("blur", () => {
+        saveFurnitureItems();
+        updateLabelColors();
+      });
     });
 
     itemElement.addEventListener("mouseenter", () => {
@@ -127,6 +130,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Reinitialize Three.js scene to update blue spheres
     initializeThreeJS();
+
+    updateLabelColors();
+
     return itemElement;
   }
 
@@ -252,6 +258,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Remove all group lines after reordering
     removeSeparators();
+
+    // Update colors after reordering
+    updateLabelColors();
   }
 
   function handleDragEnd() {
@@ -276,6 +285,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Reinitialize Three.js scene to update blue spheres
     initializeThreeJS();
+
+    // Update colors after saving
+    updateLabelColors();
   }
 
   function loadFurnitureItems() {
@@ -287,6 +299,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }));
     displayFurnitureItems(updatedItems);
     updateNotesContent();
+    updateLabelColors();
   }
 
   // Function to update notes content
@@ -665,4 +678,66 @@ function calculateGroupBoundaries(startIndex, totalItems) {
     });
   }
   return boundaries;
+}
+
+// Add this new function to update colors
+function updateLabelColors() {
+  const items = Array.from(furnitureItems.children);
+  const colorMap = new Map();
+
+  items.forEach((item) => {
+    const infoLabel = item.querySelector(".info-label");
+    const labelText = infoLabel.textContent.trim();
+    const match = labelText.match(/(.+?)\s+#(\d+)\s+([AB])/);
+
+    if (match) {
+      const [, prefix, number] = match;
+      const key = `${prefix}#${number}`;
+
+      if (!colorMap.has(key)) {
+        colorMap.set(key, getRandomColor());
+      }
+
+      const color = colorMap.get(key);
+      infoLabel.style.borderBottom = `2px solid ${color}`;
+    } else {
+      infoLabel.style.borderBottom = "none";
+    }
+  });
+
+  // Update colors in notes content
+  const notesContainer = document.getElementById("notesContent");
+  if (notesContainer) {
+    notesContainer.querySelectorAll(".trigger-link").forEach((link) => {
+      const labelText = link.textContent.trim();
+      const match = labelText.match(/(.+?)\s+#(\d+)\s+([AB])/);
+
+      if (match) {
+        const [, prefix, number] = match;
+        const key = `${prefix}#${number}`;
+        const color = colorMap.get(key);
+
+        if (color) {
+          link.style.borderBottom = `2px solid ${color}`;
+        }
+      }
+    });
+  }
+}
+
+function getRandomColor() {
+  return "#" + Math.floor(Math.random() * 16777215).toString(16);
+}
+
+// Add a debounce function to limit the frequency of updates
+function debounce(func, wait) {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
 }
