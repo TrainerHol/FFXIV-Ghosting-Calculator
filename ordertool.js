@@ -4,6 +4,9 @@ const blueSpheresMap = new Map();
 // Define blueSpheresArray at the global scope
 const blueSpheresArray = [];
 
+// At the top of your file, add this line to store colors persistently
+let persistentColorMap = new Map();
+
 document.addEventListener("DOMContentLoaded", () => {
   const uploadBtn = document.getElementById("uploadBtn");
   const addItemBtn = document.getElementById("addItemBtn");
@@ -283,6 +286,9 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     localStorage.setItem("furnitureItems", JSON.stringify(items));
 
+    // Save the persistent color map
+    localStorage.setItem("persistentColorMap", JSON.stringify(Array.from(persistentColorMap.entries())));
+
     // Reinitialize Three.js scene to update blue spheres
     initializeThreeJS();
 
@@ -300,6 +306,12 @@ document.addEventListener("DOMContentLoaded", () => {
     displayFurnitureItems(updatedItems);
     updateNotesContent();
     updateLabelColors();
+
+    // Load the persistent color map
+    const savedColorMap = localStorage.getItem("persistentColorMap");
+    if (savedColorMap) {
+      persistentColorMap = new Map(JSON.parse(savedColorMap));
+    }
   }
 
   // Function to update notes content
@@ -376,6 +388,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Add event listeners after content is added to the DOM
     addTriggerLinkListeners();
+
+    // Update colors in notes content
+    updateLabelColors();
   }
 
   // New function to add event listeners to trigger links
@@ -695,7 +710,15 @@ function updateLabelColors() {
       const key = `${prefix}#${number}`;
 
       if (!colorMap.has(key)) {
-        colorMap.set(key, getRandomColor());
+        // Check if we already have a color for this key
+        if (persistentColorMap.has(key)) {
+          colorMap.set(key, persistentColorMap.get(key));
+        } else {
+          // If not, generate a new color and store it
+          const newColor = getRandomColor();
+          colorMap.set(key, newColor);
+          persistentColorMap.set(key, newColor);
+        }
       }
 
       const color = colorMap.get(key);
