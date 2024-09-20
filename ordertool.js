@@ -386,6 +386,16 @@ document.addEventListener("DOMContentLoaded", () => {
       setTimeout(() => {
         item.classList.remove("highlighted");
       }, 1000);
+
+      // Highlight the corresponding sphere
+      const sphere = blueSpheresMap.get(triggerText);
+      if (sphere) {
+        const originalColor = sphere.material.color.getHex();
+        sphere.material.color.setHex(0xff0000); // Set to red
+        setTimeout(() => {
+          sphere.material.color.setHex(originalColor); // Revert to original color
+        }, 1000);
+      }
     }
   }
 
