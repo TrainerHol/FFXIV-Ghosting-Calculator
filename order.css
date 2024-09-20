@@ -161,6 +161,8 @@ body {
   justify-content: space-between;
   align-items: center;
   width: 100%;
+  border-top: 2px solid transparent;
+  border-bottom: 2px solid transparent;
 }
 
 .furniture-item-content {
@@ -264,4 +266,18 @@ html {
 
 .trigger-link:hover {
   color: #d3d3d3;
+}
+
+/* New styles for ghosting groups */
+.ghosting-group-item {
+  background-color: rgba(255, 255, 255, 0.05);
+  position: relative;
+}
+
+.ghosting-group-start {
+  border-top: 2px solid rgba(174, 175, 174, 0.7);
+}
+
+.ghosting-group-end {
+  border-bottom: 2px solid rgba(174, 175, 174, 0.7);
 }

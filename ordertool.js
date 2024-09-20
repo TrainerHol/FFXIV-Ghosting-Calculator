@@ -157,6 +157,7 @@ document.addEventListener("DOMContentLoaded", () => {
     e.dataTransfer.effectAllowed = "move";
     e.dataTransfer.setData("text/html", this.innerHTML);
     this.classList.add("dragging");
+    this.dataset.originalIndex = Array.from(furnitureItems.children).indexOf(this);
   }
 
   function handleDragOver(e) {
@@ -248,6 +249,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Reinitialize Three.js scene to update blue spheres
     initializeThreeJS();
+
+    // Remove all group lines after reordering
+    removeSeparators();
   }
 
   function handleDragEnd() {
@@ -392,22 +396,45 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const allItems = Array.from(furnitureItems.children);
     const startIndex = allItems.indexOf(startItem);
-
-    let index = startIndex;
     const total = allItems.length;
 
+    // Remove existing group classes
+    removeSeparators();
+
+    // Calculate group boundaries
+    const groupBoundaries = calculateGroupBoundaries(startIndex, total);
+
+    let currentGroupIndex = 0;
+
     function highlightGroup() {
-      if (index >= total) return;
-      for (let i = index; i < index + 5 && i < total; i++) {
-        allItems[i].classList.add("highlighted");
+      if (currentGroupIndex >= groupBoundaries.length) {
+        return;
+      }
+
+      const { start, end } = groupBoundaries[currentGroupIndex];
+
+      // Add top border to the first item in the group
+      allItems[start].classList.add("ghosting-group-start");
+
+      for (let i = start; i <= end; i++) {
+        allItems[i].classList.add("highlighted", "ghosting-group-item");
 
         // Highlight the corresponding blue sphere
         if (i < blueSpheresArray.length) {
           blueSpheresArray[i].material.color.set(0xffff00); // Change to yellow
         }
+
+        // Add bottom border to the last item in the group
+        if (i === end) {
+          allItems[i].classList.add("ghosting-group-end");
+        }
       }
+
+      // Scroll to the first item in the current group
+      allItems[start].scrollIntoView({ behavior: "smooth", block: "center" });
+
       setTimeout(() => {
-        for (let i = index; i < index + 5 && i < total; i++) {
+        for (let i = start; i <= end; i++) {
           allItems[i].classList.remove("highlighted");
 
           // Revert blue sphere color
@@ -415,12 +442,24 @@ document.addEventListener("DOMContentLoaded", () => {
             blueSpheresArray[i].material.color.set(0x0000ff); // Revert to blue
           }
         }
-        index += 5;
-        highlightGroup();
+
+        currentGroupIndex++;
+        if (currentGroupIndex < groupBoundaries.length) {
+          highlightGroup();
+        } else {
+          // Animation finished, remove ghosting-group-item classes
+          allItems.forEach((item) => item.classList.remove("ghosting-group-item"));
+        }
       }, 1000);
     }
 
     highlightGroup();
+  }
+
+  function removeSeparators() {
+    furnitureItems.querySelectorAll(".furniture-item").forEach((item) => {
+      item.classList.remove("ghosting-group-start", "ghosting-group-end", "ghosting-group-item");
+    });
   }
 
   function computeGhostingPairs() {
@@ -585,7 +624,7 @@ function initializeThreeJS() {
     renderer.render(scene, camera);
   }
 
-  // Add this function inside initializeThreeJS
+  // Function inside initializeThreeJS
   function highlightSphere(index, highlight) {
     if (index >= 0 && index < blueSpheresArray.length) {
       const sphere = blueSpheresArray[index];
@@ -604,4 +643,16 @@ function normalizeVector(vector, maxRadius) {
   const length = vector.length();
   if (length === 0) return vector;
   return vector.multiplyScalar(maxRadius / length);
+}
+
+// Function to calculate group boundaries
+function calculateGroupBoundaries(startIndex, totalItems) {
+  const boundaries = [];
+  for (let i = startIndex; i < totalItems; i += 5) {
+    boundaries.push({
+      start: i,
+      end: Math.min(i + 4, totalItems - 1),
+    });
+  }
+  return boundaries;
 }
