@@ -80,6 +80,8 @@ document.addEventListener("DOMContentLoaded", () => {
   clearListBtn.addEventListener("click", () => {
     furnitureItems.innerHTML = "";
     saveFurnitureItems();
+    computeGhostingPairs();
+    updateNotesContent();
   });
 
   function addFurnitureItem(item = { name: "", info: "", coordinates: { x: 0, y: 0, z: 0 } }) {
