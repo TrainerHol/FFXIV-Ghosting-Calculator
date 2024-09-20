@@ -130,7 +130,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function displayFurnitureItems(items) {
     furnitureItems.innerHTML = "";
-    items.forEach((item) => addFurnitureItem(item));
+    items.forEach((item) => {
+      const itemElement = addFurnitureItem(item);
+      // Preserve the custom info when displaying items
+      itemElement.querySelector(".info-label").textContent = item.info || "";
+    });
     computeGhostingPairs();
     updateNotesContent();
   }
@@ -189,6 +193,9 @@ document.addEventListener("DOMContentLoaded", () => {
     // Store the initial positions of all items
     const initialPositions = allItems.map((item) => item.getBoundingClientRect().top);
 
+    // Preserve the custom info before removing the dragged item
+    const draggedItemInfo = dragSrcEl.querySelector(".info-label").textContent;
+
     // Remove the dragged item from its original position
     dragSrcEl.remove();
 
@@ -198,6 +205,9 @@ document.addEventListener("DOMContentLoaded", () => {
     } else {
       furnitureItems.insertBefore(dragSrcEl, targetItem);
     }
+
+    // Restore the custom info
+    dragSrcEl.querySelector(".info-label").textContent = draggedItemInfo;
 
     // Animate the movement
     requestAnimationFrame(() => {
@@ -416,6 +426,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const items = Array.from(furnitureItems.children)
       .map((item) => {
         const nameText = item.querySelector(".furniture-item-content .editable").textContent;
+        const infoLabel = item.querySelector(".info-label");
         const coordsMatch = nameText.match(/\((-?\d+\.\d+),\s*(-?\d+\.\d+),\s*(-?\d+\.\d+)\)/);
         if (coordsMatch) {
           return {
@@ -425,6 +436,10 @@ document.addEventListener("DOMContentLoaded", () => {
               y: parseFloat(coordsMatch[2]),
               z: parseFloat(coordsMatch[3]),
             },
+            customInfo: infoLabel.textContent
+              .trim()
+              .replace(/Trigger #\d+ [AB]/, "")
+              .trim(), // Remove existing trigger and store custom info
           };
         }
         return null;
@@ -432,10 +447,6 @@ document.addEventListener("DOMContentLoaded", () => {
       .filter((item) => item !== null);
 
     let triggerNumber = 1;
-    // Reset existing info labels in each furniture item
-    items.forEach((item) => {
-      item.element.querySelector(".info-label").textContent = "";
-    });
 
     for (let i = 0; i < items.length; i++) {
       for (let j = i + 1; j < items.length; j++) {
@@ -459,9 +470,9 @@ document.addEventListener("DOMContentLoaded", () => {
             },
           });
 
-          // Assign Trigger labels
-          items[i].element.querySelector(".info-label").textContent = triggerA;
-          items[j].element.querySelector(".info-label").textContent = triggerB;
+          // Assign Trigger labels while preserving custom info
+          items[i].element.querySelector(".info-label").textContent = items[i].customInfo ? `${items[i].customInfo} ${triggerA}` : triggerA;
+          items[j].element.querySelector(".info-label").textContent = items[j].customInfo ? `${items[j].customInfo} ${triggerB}` : triggerB;
 
           triggerNumber++;
         }
