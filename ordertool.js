@@ -9,12 +9,120 @@ let persistentColorMap = new Map();
 
 document.addEventListener("DOMContentLoaded", () => {
   const uploadBtn = document.getElementById("uploadBtn");
+  const downloadReorderedBtn = document.getElementById("downloadReorderedBtn");
   const addItemBtn = document.getElementById("addItemBtn");
   const clearListBtn = document.getElementById("clearListBtn"); // New button
   const furnitureItems = document.getElementById("furnitureItems");
 
+  const STORAGE_KEYS = {
+    furnitureItems: "furnitureItems",
+    persistentColorMap: "persistentColorMap",
+    makeplaceOriginal: "makeplaceOriginal",
+    makeplaceOriginalName: "makeplaceOriginalName",
+  };
+
   // Define pairs list
   let pairs = [];
+
+  function refreshDownloadReorderedButtonState() {
+    if (!downloadReorderedBtn) return;
+    const rawOriginal = localStorage.getItem(STORAGE_KEYS.makeplaceOriginal);
+    const hasOriginal = typeof rawOriginal === "string" && rawOriginal.trim().length > 0;
+    downloadReorderedBtn.classList.toggle("is-hidden", !hasOriginal);
+    if (!hasOriginal) {
+      downloadReorderedBtn.disabled = true;
+      return;
+    }
+    if (!furnitureItems) {
+      downloadReorderedBtn.disabled = true;
+      return;
+    }
+
+    const listItems = Array.from(furnitureItems.querySelectorAll(".furniture-item"));
+    const hasItems = listItems.length > 0;
+    const allHaveKeys = listItems.every((item) => typeof item.dataset.makeplaceKey === "string" && /^mp-\d+$/.test(item.dataset.makeplaceKey));
+    downloadReorderedBtn.disabled = !(hasItems && allHaveKeys);
+  }
+
+  function downloadReorderedMakeplace() {
+    const rawOriginal = localStorage.getItem(STORAGE_KEYS.makeplaceOriginal);
+    if (typeof rawOriginal !== "string" || rawOriginal.trim().length === 0) {
+      refreshDownloadReorderedButtonState();
+      return;
+    }
+    if (!furnitureItems) return;
+
+    const listItems = Array.from(furnitureItems.querySelectorAll(".furniture-item"));
+    const keys = listItems.map((item) => item.dataset.makeplaceKey);
+    const hasInvalidKey = keys.some((key) => typeof key !== "string" || !/^mp-\d+$/.test(key));
+    if (hasInvalidKey) {
+      alert("Download reordered is only available for lists created from a Makeplace upload. Clear the list and re-upload your Makeplace file.");
+      refreshDownloadReorderedButtonState();
+      return;
+    }
+
+    let original;
+    try {
+      original = JSON.parse(rawOriginal);
+    } catch {
+      alert("Saved Makeplace data is invalid. Please re-upload your Makeplace file.");
+      localStorage.removeItem(STORAGE_KEYS.makeplaceOriginal);
+      localStorage.removeItem(STORAGE_KEYS.makeplaceOriginalName);
+      refreshDownloadReorderedButtonState();
+      return;
+    }
+
+    if (!original || !Array.isArray(original.interiorFurniture)) {
+      alert("This does not look like a Makeplace file (missing interiorFurniture). Please re-upload a valid Makeplace JSON.");
+      return;
+    }
+
+    const originalInterior = original.interiorFurniture;
+    if (keys.length !== originalInterior.length) {
+      alert("The current list does not match the uploaded Makeplace interiorFurniture count. Clear the list and re-upload your Makeplace file.");
+      refreshDownloadReorderedButtonState();
+      return;
+    }
+
+    const used = new Set();
+    const reorderedInterior = [];
+    for (const key of keys) {
+      const index = Number.parseInt(key.slice("mp-".length), 10);
+      if (!Number.isFinite(index) || index < 0 || index >= originalInterior.length) {
+        alert("Reorder mapping is invalid. Clear the list and re-upload your Makeplace file.");
+        refreshDownloadReorderedButtonState();
+        return;
+      }
+      if (used.has(index)) {
+        alert("Reorder mapping contains duplicates. Clear the list and re-upload your Makeplace file.");
+        refreshDownloadReorderedButtonState();
+        return;
+      }
+      used.add(index);
+      reorderedInterior.push(originalInterior[index]);
+    }
+
+    const output = { ...original, interiorFurniture: reorderedInterior };
+    const jsonString = JSON.stringify(output, null, 2);
+    const blob = new Blob([jsonString], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+
+    const originalName = localStorage.getItem(STORAGE_KEYS.makeplaceOriginalName);
+    const baseName = typeof originalName === "string" && originalName.trim().length > 0 ? originalName.trim() : "makeplace.json";
+    const downloadName = baseName.replace(/\.json$/i, "") + "-reordered.json";
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = downloadName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  if (downloadReorderedBtn) {
+    downloadReorderedBtn.addEventListener("click", downloadReorderedMakeplace);
+  }
 
   uploadBtn.addEventListener("click", () => {
     const fileInput = document.createElement("input");
@@ -27,11 +135,13 @@ document.addEventListener("DOMContentLoaded", () => {
   function handleFileUpload(event) {
     const file = event.target.files[0];
     if (file) {
+      const fileName = file.name;
       const reader = new FileReader();
       reader.onload = (e) => {
         try {
-          const jsonData = JSON.parse(e.target.result);
-          processMakeplaceFile(jsonData);
+          const rawText = typeof e.target.result === "string" ? e.target.result : "";
+          const jsonData = JSON.parse(rawText);
+          processMakeplaceFile(jsonData, { rawText, fileName });
         } catch (error) {
           console.error("Error parsing JSON file:", error);
           alert("Error parsing JSON file. Please make sure it's a valid Makeplace file.");
@@ -41,19 +151,22 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  function processMakeplaceFile(data) {
+  function processMakeplaceFile(data, { rawText, fileName } = {}) {
+    if (typeof rawText === "string" && rawText.trim().length > 0) {
+      localStorage.setItem(STORAGE_KEYS.makeplaceOriginal, rawText);
+    }
+    if (typeof fileName === "string" && fileName.trim().length > 0) {
+      localStorage.setItem(STORAGE_KEYS.makeplaceOriginalName, fileName);
+    }
+    refreshDownloadReorderedButtonState();
+
     furnitureItems.innerHTML = ""; // Clear existing items
     const items = [];
 
     // Process interiorFurniture
     if (data.interiorFurniture) {
-      data.interiorFurniture.forEach((item) => {
-        items.push(createItemFromMakeplaceData(item));
-        if (item.attachments) {
-          item.attachments.forEach((attachment) => {
-            items.push(createItemFromMakeplaceData(attachment));
-          });
-        }
+      data.interiorFurniture.forEach((item, index) => {
+        items.push({ ...createItemFromMakeplaceData(item), makeplaceKey: `mp-${index}` });
       });
     }
 
@@ -82,18 +195,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
   clearListBtn.addEventListener("click", () => {
     furnitureItems.innerHTML = "";
+    localStorage.removeItem(STORAGE_KEYS.makeplaceOriginal);
+    localStorage.removeItem(STORAGE_KEYS.makeplaceOriginalName);
+    refreshDownloadReorderedButtonState();
     saveFurnitureItems();
     computeGhostingPairs();
     updateNotesContent();
   });
 
-  function addFurnitureItem(item = { name: "", info: "", coordinates: { x: 0, y: 0, z: 0 } }) {
+  function addFurnitureItem(item = { name: "", info: "", coordinates: { x: 0, y: 0, z: 0 }, makeplaceKey: undefined }) {
     // Ensure coordinates exist
     item.coordinates = item.coordinates || { x: 0, y: 0, z: 0 };
 
     const itemElement = document.createElement("div");
     itemElement.className = "furniture-item";
-    itemElement.draggable = true;
     itemElement.innerHTML = `
       <div class="furniture-item-content">
         <div class="editable" contenteditable="true">${item.name || "Edit Name"}</div>
@@ -102,15 +217,21 @@ document.addEventListener("DOMContentLoaded", () => {
         <div class="info-label editable" contenteditable="true">${item.info || ""}</div>
       </div>
     `;
-    addDragAndDropHandlers(itemElement);
 
     // Set dataset attributes for coordinates
     itemElement.dataset.x = item.coordinates.x;
     itemElement.dataset.y = item.coordinates.y;
     itemElement.dataset.z = item.coordinates.z;
+    if (typeof item.makeplaceKey === "string" && item.makeplaceKey.trim().length > 0) {
+      itemElement.dataset.makeplaceKey = item.makeplaceKey;
+    }
 
     // Save changes and update colors on blur
     itemElement.querySelectorAll(".editable").forEach((element) => {
+      element.setAttribute("draggable", "false");
+      element.addEventListener("dragstart", (event) => event.preventDefault());
+      element.addEventListener("dragover", (event) => event.preventDefault());
+      element.addEventListener("drop", (event) => event.preventDefault());
       element.addEventListener("blur", () => {
         saveFurnitureItems();
         updateLabelColors();
@@ -151,126 +272,169 @@ document.addEventListener("DOMContentLoaded", () => {
     updateNotesContent();
   }
 
-  function addDragAndDropHandlers(element) {
-    element.addEventListener("dragstart", handleDragStart);
-    element.addEventListener("dragover", handleDragOver);
-    element.addEventListener("drop", handleDrop);
-    element.addEventListener("dragend", handleDragEnd);
-  }
+  function initFurnitureReorder() {
+    const state = {
+      pointerId: null,
+      startX: 0,
+      startY: 0,
+      offsetX: 0,
+      offsetY: 0,
+      dragging: false,
+      dragItem: null,
+      placeholder: null,
+      startedInEditable: false,
+    };
 
-  let dragSrcEl = null;
-  let dragSrcIndex = null;
+    const thresholdPx = 8;
 
-  function handleDragStart(e) {
-    dragSrcEl = this;
-    dragSrcIndex = Array.from(furnitureItems.children).indexOf(this);
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/html", this.innerHTML);
-    this.classList.add("dragging");
-    this.dataset.originalIndex = Array.from(furnitureItems.children).indexOf(this);
-  }
-
-  function handleDragOver(e) {
-    if (e.preventDefault) {
-      e.preventDefault();
-    }
-    e.dataTransfer.dropEffect = "move";
-    const targetItem = e.target.closest(".furniture-item");
-    if (targetItem && targetItem !== dragSrcEl) {
-      const targetRect = targetItem.getBoundingClientRect();
-      const afterMiddle = e.clientY > targetRect.top + targetRect.height / 2;
-
-      furnitureItems.querySelectorAll(".furniture-item").forEach((item) => item.classList.remove("drag-over", "drag-over-top", "drag-over-bottom"));
-
-      targetItem.classList.add("drag-over", afterMiddle ? "drag-over-bottom" : "drag-over-top");
-    }
-    return false;
-  }
-
-  function handleDrop(e) {
-    e.preventDefault();
-    e.stopPropagation();
-
-    if (dragSrcEl === this) return false;
-
-    const targetItem = e.target.closest(".furniture-item");
-    if (!targetItem) return false;
-
-    const allItems = Array.from(furnitureItems.children);
-    const fromIndex = allItems.indexOf(dragSrcEl);
-    const toIndex = allItems.indexOf(targetItem);
-
-    const targetRect = targetItem.getBoundingClientRect();
-    const afterMiddle = e.clientY > targetRect.top + targetRect.height / 2;
-
-    // Store the initial positions of all items
-    const initialPositions = allItems.map((item) => item.getBoundingClientRect().top);
-
-    // Preserve the custom info before removing the dragged item
-    const draggedItemInfo = dragSrcEl.querySelector(".info-label").textContent;
-
-    // Remove the dragged item from its original position
-    dragSrcEl.remove();
-
-    // Insert the dragged item at its new position
-    if (afterMiddle) {
-      furnitureItems.insertBefore(dragSrcEl, targetItem.nextSibling);
-    } else {
-      furnitureItems.insertBefore(dragSrcEl, targetItem);
+    function clearSelection() {
+      const selection = window.getSelection && window.getSelection();
+      if (selection && typeof selection.removeAllRanges === "function") {
+        selection.removeAllRanges();
+      }
     }
 
-    // Restore the custom info
-    dragSrcEl.querySelector(".info-label").textContent = draggedItemInfo;
+    function stopReorder() {
+      furnitureItems.classList.remove("is-reordering");
 
-    // Animate the movement
-    requestAnimationFrame(() => {
-      const items = furnitureItems.querySelectorAll(".furniture-item");
-      items.forEach((item, index) => {
-        const itemRect = item.getBoundingClientRect();
-        const furnitureRect = furnitureItems.getBoundingClientRect();
-        const newTop = itemRect.top - furnitureRect.top;
-        const oldTop = initialPositions[index] - furnitureRect.top;
-        const deltaY = newTop - oldTop;
+      if (state.dragItem) {
+        state.dragItem.classList.remove("is-dragging");
+        state.dragItem.style.position = "";
+        state.dragItem.style.left = "";
+        state.dragItem.style.top = "";
+        state.dragItem.style.width = "";
+        state.dragItem.style.zIndex = "";
+        state.dragItem.style.pointerEvents = "";
+      }
 
-        // Only animate items that have changed position
-        if (Math.abs(deltaY) > 1) {
-          item.style.transform = `translateY(${-deltaY}px)`;
-          item.style.transition = "none";
+      if (state.placeholder && state.dragItem) {
+        state.placeholder.replaceWith(state.dragItem);
+      }
 
-          requestAnimationFrame(() => {
-            item.style.transform = "";
-            item.style.transition = "transform 0.3s ease-out";
-          });
-        }
+      state.pointerId = null;
+      state.dragging = false;
+      state.dragItem = null;
+      state.placeholder = null;
+    }
+
+    function finalizeDrop() {
+      stopReorder();
+      saveFurnitureItems();
+      computeGhostingPairs();
+      updateNotesContent();
+      initializeThreeJS();
+      removeSeparators();
+      updateLabelColors();
+    }
+
+    function movePlaceholder(clientY) {
+      const items = Array.from(furnitureItems.querySelectorAll(".furniture-item")).filter((item) => item !== state.dragItem);
+      const beforeItem = items.find((item) => {
+        const rect = item.getBoundingClientRect();
+        return clientY < rect.top + rect.height / 2;
       });
 
-      // Reset styles after animation
-      setTimeout(() => {
-        items.forEach((item) => {
-          item.style.transform = "";
-          item.style.transition = "";
-        });
-      }, 300);
+      if (beforeItem) {
+        if (state.placeholder.nextSibling !== beforeItem) {
+          furnitureItems.insertBefore(state.placeholder, beforeItem);
+        }
+        return;
+      }
+
+      if (state.placeholder.parentElement === furnitureItems && state.placeholder.nextSibling !== null) {
+        furnitureItems.appendChild(state.placeholder);
+      }
+    }
+
+    function beginDrag(item, pointerEvent) {
+      state.dragItem = item;
+      state.dragging = true;
+
+      const active = document.activeElement;
+      if (active && typeof active.blur === "function") {
+        active.blur();
+      }
+      clearSelection();
+
+      const rect = item.getBoundingClientRect();
+      state.offsetX = pointerEvent.clientX - rect.left;
+      state.offsetY = pointerEvent.clientY - rect.top;
+
+      const placeholder = document.createElement("div");
+      placeholder.className = "reorder-placeholder";
+      placeholder.style.height = `${rect.height}px`;
+      const computed = window.getComputedStyle(item);
+      placeholder.style.marginBottom = computed.marginBottom;
+
+      state.placeholder = placeholder;
+      furnitureItems.classList.add("is-reordering");
+      furnitureItems.insertBefore(placeholder, item.nextSibling);
+
+      item.classList.add("is-dragging");
+      item.style.position = "fixed";
+      item.style.left = `${rect.left}px`;
+      item.style.top = `${rect.top}px`;
+      item.style.width = `${rect.width}px`;
+      item.style.zIndex = "1000";
+      item.style.pointerEvents = "none";
+
+      if (typeof furnitureItems.setPointerCapture === "function") {
+        furnitureItems.setPointerCapture(pointerEvent.pointerId);
+      }
+    }
+
+    furnitureItems.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0) return;
+      const item = e.target.closest(".furniture-item");
+      if (!item) return;
+
+      state.pointerId = e.pointerId;
+      state.startX = e.clientX;
+      state.startY = e.clientY;
+      state.dragItem = item;
+      state.dragging = false;
+      state.startedInEditable = Boolean(e.target.closest(".editable"));
+
+      if (!state.startedInEditable) {
+        e.preventDefault();
+      }
     });
 
-    saveFurnitureItems();
-    computeGhostingPairs();
-    updateNotesContent();
+    furnitureItems.addEventListener("pointermove", (e) => {
+      if (state.pointerId === null || e.pointerId !== state.pointerId) return;
+      if (!state.dragItem) return;
 
-    // Reinitialize Three.js scene to update blue spheres
-    initializeThreeJS();
+      const dx = e.clientX - state.startX;
+      const dy = e.clientY - state.startY;
 
-    // Remove all group lines after reordering
-    removeSeparators();
+      if (!state.dragging) {
+        if (Math.hypot(dx, dy) < thresholdPx) return;
+        beginDrag(state.dragItem, e);
+      }
 
-    // Update colors after reordering
-    updateLabelColors();
-  }
+      e.preventDefault();
+      state.dragItem.style.left = `${e.clientX - state.offsetX}px`;
+      state.dragItem.style.top = `${e.clientY - state.offsetY}px`;
+      movePlaceholder(e.clientY);
+    });
 
-  function handleDragEnd() {
-    this.classList.remove("dragging");
-    furnitureItems.querySelectorAll(".furniture-item").forEach((item) => {
-      item.classList.remove("drag-over", "drag-over-top", "drag-over-bottom");
+    function endPointer(e) {
+      if (state.pointerId === null || e.pointerId !== state.pointerId) return;
+      if (!state.dragging) {
+        state.pointerId = null;
+        state.dragItem = null;
+        return;
+      }
+
+      e.preventDefault();
+      finalizeDrop();
+    }
+
+    furnitureItems.addEventListener("pointerup", endPointer);
+    furnitureItems.addEventListener("pointercancel", (e) => {
+      if (state.pointerId === null || e.pointerId !== state.pointerId) return;
+      e.preventDefault();
+      stopReorder();
     });
   }
 
@@ -283,22 +447,24 @@ document.addEventListener("DOMContentLoaded", () => {
       const x = parseFloat(item.dataset.x) || 0;
       const y = parseFloat(item.dataset.y) || 0;
       const z = parseFloat(item.dataset.z) || 0;
-      items.push({ name, info, coordinates: { x, y, z } });
+      const makeplaceKey = typeof item.dataset.makeplaceKey === "string" ? item.dataset.makeplaceKey : undefined;
+      items.push({ name, info, coordinates: { x, y, z }, makeplaceKey });
     });
-    localStorage.setItem("furnitureItems", JSON.stringify(items));
+    localStorage.setItem(STORAGE_KEYS.furnitureItems, JSON.stringify(items));
 
     // Save the persistent color map
-    localStorage.setItem("persistentColorMap", JSON.stringify(Array.from(persistentColorMap.entries())));
+    localStorage.setItem(STORAGE_KEYS.persistentColorMap, JSON.stringify(Array.from(persistentColorMap.entries())));
 
     // Reinitialize Three.js scene to update blue spheres
     initializeThreeJS();
 
     // Update colors after saving
     updateLabelColors();
+    refreshDownloadReorderedButtonState();
   }
 
   function loadFurnitureItems() {
-    const items = JSON.parse(localStorage.getItem("furnitureItems")) || [];
+    const items = JSON.parse(localStorage.getItem(STORAGE_KEYS.furnitureItems)) || [];
     // All items have coordinates
     const updatedItems = items.map((item) => ({
       ...item,
@@ -309,7 +475,7 @@ document.addEventListener("DOMContentLoaded", () => {
     updateLabelColors();
 
     // Load the persistent color map
-    const savedColorMap = localStorage.getItem("persistentColorMap");
+    const savedColorMap = localStorage.getItem(STORAGE_KEYS.persistentColorMap);
     if (savedColorMap) {
       persistentColorMap = new Map(JSON.parse(savedColorMap));
     }
@@ -590,6 +756,8 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   loadFurnitureItems();
+  refreshDownloadReorderedButtonState();
+  initFurnitureReorder();
 
   // Initialize Three.js
   initializeThreeJS();
